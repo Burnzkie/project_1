@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="dash.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <div class="sidebar">
+        <h2>School Payment</h2>
+        <ul>
+            <li onclick="showSection('dashboard')">Dashboard</li>
+            <li onclick="showSection('makePayment')">Make a Payment</li>
+            <li onclick="showSection('paymentHistory')">Payment History</li>
+            <li onclick="showSection('accountSettings')">Account Settings</li>
+        </ul>
+    </div>
+    <div class="main-content">
+        <section id="dashboard" class="dashboard-section">
+            <div class="header">
+                <h1>Dashboard</h1>
+            </div>
+            <div class="payment-summary">
+                <div class="summary-card">
+                    <h3>Total Paid</h3>
+                    <p>$5,000</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Pending Payments</h3>
+                    <p>$500</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Overdue Payments</h3>
+                    <p>$200</p>
+                </div>
+            </div>
+            <div class="payment-list">
+                <h2>Recent Payments</h2>
+                <ul>
+                    <li>Payment 1 - $100 - 2024-01-01</li>
+                    <li>Payment 2 - $200 - 2024-01-15</li>
+                    <li>Payment 3 - $150 - 2024-02-01</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="makePayment" class="dashboard-section" style="display: none;">
+            <div class="header">
+                <h1>Make a Payment</h1>
+            </div>
+            <div class="payment-form">
+                <form id="paymentForm">
+                    <label for="studentName">Student Name:</label>
+                    <input type="text" id="studentName" name="studentName" required>
+
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" required>
+
+                    <label for="paymentAmount">Payment Amount:</label>
+                    <input type="number" id="paymentAmount" name="paymentAmount" required>
+
+                    <label for="paymentMethod">Payment Method:</label>
+                    <select id="paymentMethod" name="paymentMethod">
+                        <option value="creditCard">Credit Card</option>
+                        <option value="paypal">PayPal</option>
+                        <option value="bankTransfer">Bank Transfer</option>
+                    </select>
+
+                    <button type="submit">Submit Payment</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="paymentHistory" class="dashboard-section" style="display: none;">
+            <div class="header">
+                <h1>Payment History</h1>
+            </div>
+            <div class="payment-list">
+                <h2>Past Payments</h2>
+                <ul>
+                    <li>Payment 1 - $100 - 2023-12-01</li>
+                    <li>Payment 2 - $200 - 2023-11-15</li>
+                    <li>Payment 3 - $150 - 2023-10-01</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="accountSettings" class="dashboard-section" style="display: none;">
+            <div class="header">
+                <h1>Account Settings</h1>
+            </div>
+            <div class="account-settings-form">
+                <form id="accountSettingsForm">
+                    <label for="fullName">Full Name:</label>
+                    <input type="text" id="fullName" name="fullName" value="John Doe">
+
+                    <label for="emailAddress">Email Address:</label>
+                    <input type="email" id="emailAddress" name="emailAddress" value="john.doe@example.com">
+
+                    <label for="phoneNumber">Phone Number:</label>
+                    <input type="tel" id="phoneNumber" name="phoneNumber" value="123-456-7890">
+
+                    <label for="newPassword">New Password:</label>
+                    <input type="password" id="newPassword" name="newPassword" placeholder="Enter new password">
+
+                    <button type="submit">Update Account</button>
+                </form>
+
+                <div class="deactivate-account">
+                    <h3>Deactivate Account</h3>
+                    <p>Deactivating your account will temporarily suspend it. You can reactivate it later.</p>
+                    <button onclick="deactivateAccount()">Deactivate My Account</button>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script src="dash.js"></script>
+</body>
+</html>
