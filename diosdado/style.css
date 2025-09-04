@@ -1,0 +1,65 @@
+body {
+      font-family: Arial, sans-serif;
+      background-color: #d3d3d3;
+      padding: 30px;
+    }
+
+    h2 {
+      font-weight: bold;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      padding: 12px 15px;
+      border: 1px solid #004;
+      text-align: left;
+    }
+
+    .button {
+      padding: 8px 16px;
+      font-size: 14px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .pay-btn {
+      background-color: #28a745;
+      color: white;
+    }
+
+    .refund-btn {
+      background-color: white;
+      color: red;
+      border: 2px solid red;
+    }
+
+    .edit-btn {
+      background-color: #28a745;
+      color: white;
+    }
+
+    .delete-btn {
+      background-color: white;
+      color: red;
+      border: 2px solid red;
+    }
+
+    .note {
+      margin-top: 10px;
+      border: 1px solid #333;
+      background-color: #ccc;
+      padding: 10px;
+      font-size: 14px;
+    }
+
+    .btn-container {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
