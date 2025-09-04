@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Request Refund</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h2>Request Refund</h2>
+      <button class="request-btn" onclick="openModal()">Request Refund</button>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Payment ID</th>
+            <th>Amount</th>
+            <th>Description</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>std20251</td>
+            <td>₱500.00</td>
+            <td>P.E Uniform</td>
+            <td>
+              <button class="approved">Approved</button>
+              <button class="rejected">Reject</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="modal" id="refundModal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h3>Refund Request Form</h3>
+        <form id="refundForm">
+          <label>Payment ID:</label>
+          <input type="text" id="paymentId" required />
+
+          <label>Amount:</label>
+          <input type="text" id="amount" required />
+
+          <label>Description:</label>
+          <textarea id="description" required></textarea>
+
+          <button type="submit">Submit</button>
+        </form>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
