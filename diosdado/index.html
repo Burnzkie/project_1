@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STUDENT PAYMENT</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+     <h2>Student Payment</h2>
+
+  <div class="top-bar">
+    <div class="note"><strong>Onclick</strong>, Create new payment</div>
+    <button class="btn btn-pay">Pay</button>
+    <button class="btn btn-refund">Refund</button>
+  </div>
+  
+  <table>
+    <thead>
+      <tr>
+        <th>Student ID</th>
+        <th>Student Name</th>
+        <th>Amount</th>
+        <th>Description</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>P1343552500</td>
+        <td>John Shadow</td>
+        <td>₱2,500.00</td>
+        <td>Tuition</td>
+        <td class="btn-container">
+          <button class="button edit-btn" onclick="editPayment()">Edit</button>
+          <button class="button delete-btn" onclick="deletePayment()">Delete</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>
