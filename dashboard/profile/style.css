@@ -1,0 +1,15 @@
+#profilePic:hover {
+    background-color: #d1d5db;
+}
+#defaultText {
+    display: block;
+}
+#profileImage[src="https://via.placeholder.com/96"] + #defaultText {
+    display: block;
+}
+#profileImage:not([src="https://via.placeholder.com/96"]) + #defaultText {
+    display: none;
+}
+#actionModal, #editModal, #uploadModal {
+    z-index: 50;
+}

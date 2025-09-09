@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-200 flex">
+    <div class="flex-1 p-6">
+        <h1 class="text-2xl font-bold mb-4">Profile</h1>
+        <div class="bg-white p-4 rounded shadow" id="profileContainer">
+            <div class="flex items-center mb-4">
+                <div class="w-24 h-24 bg-gray-300 rounded-full flex items-center justify-center cursor-pointer relative" id="profilePic">
+                    <img id="profileImage" src="https://via.placeholder.com/96" alt="Profile Picture" class="w-full h-full rounded-full object-cover">
+                    <span id="defaultText" class="text-gray-500 absolute">Profile</span>
+                </div>
+                <div class="ml-4" id="userInfo">
+                    <p><strong>First Name:</strong> <span id="firstname"></span></p>
+                    <p><strong>Last Name:</strong> <span id="lastname"></span></p>
+                    <p><strong>Email:</strong> <span id="email"></span></p>
+                    <p><strong>Phone:</strong> <span id="phone"></span></p>
+                    <p><strong>Gender:</strong> <span id="gender"></span></p>
+                    <p><strong>Date of Birth:</strong> <span id="dob"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Profile Picture Actions -->
+    <div id="actionModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-4 rounded shadow w-96">
+            <ul>
+                <li class="mb-2"><button id="viewProfile" class="text-blue-600 w-full text-left">View profile</button></li>
+                <li class="mb-2"><button id="editProfile" class="text-blue-600 w-full text-left">Edit profile</button></li>
+                <li class="mb-2"><button id="uploadProfile" class="text-blue-600 w-full text-left">Upload new profile</button></li>
+                <li><button id="deleteProfile" class="text-blue-600 w-full text-left">Delete profile</button></li>
+            </ul>
+            <button id="closeModal" class="mt-4 bg-red-500 text-white p-2 rounded w-full">Close</button>
+        </div>
+    </div>
+
+    <!-- Edit Form Modal -->
+    <div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-4 rounded shadow w-96">
+            <h3 class="text-lg font-semibold mb-2">Edit Profile Picture</h3>
+            <input type="text" id="editCaption" placeholder="Caption (e.g., 'Updated Photo')" class="border p-2 mb-2 w-full">
+            <button id="saveEdit" class="bg-blue-500 text-white p-2 rounded w-full">Save</button>
+            <button id="cancelEdit" class="mt-2 bg-red-500 text-white p-2 rounded w-full">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Upload Form Modal -->
+    <div id="uploadModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-4 rounded shadow w-96">
+            <h3 class="text-lg font-semibold mb-2">Upload New Profile Picture</h3>
+            <input type="file" id="profileUpload" name="profilePicture" accept="image/*" class="border p-2 mb-2 w-full">
+            <button id="uploadSave" class="bg-blue-500 text-white p-2 rounded w-full">Upload</button>
+            <button id="cancelUpload" class="mt-2 bg-red-500 text-white p-2 rounded w-full">Cancel</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

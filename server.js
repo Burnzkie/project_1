@@ -3,29 +3,125 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
 const bodyParser = require('body-parser');
 const path = require('path');
+const multer = require('multer');
+const cors = require('cors');
 
 const app = express();
 const port = 3000;
 
-// Middleware to parse JSON and URL-encoded form data
+// Middleware
+app.use(cors()); // Enable CORS for development
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Serve static files
-app.use('/login', express.static(path.join(__dirname, 'login')));
 app.use('/dashboard', express.static(path.join(__dirname, 'dashboard')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Serve uploaded files
 
-// MySQL database connection
-const db = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: '', // Empty for XAMPP default
-    database: 'shadow_1'
+// Multer configuration for file storage
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'uploads/'); // Directory to save files
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + '-' + file.originalname); // Unique filename
+    }
 });
 
-// Redirect root to /login
+const upload = multer({
+    storage: storage,
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed!'), false);
+        }
+    },
+    limits: { fileSize: 1024 * 1024 * 5 } // 5MB limit
+});
+
+// Dynamic routing for subpages with no caching
+app.get('/dashboard/:page', (req, res) => {
+    const page = req.params.page === 'index.html' ? 'index' : req.params.page;
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.sendFile(path.join(__dirname, 'dashboard', page, 'index.html'), (err) => {
+        if (err) {
+            console.error(`File not found: ${path.join(__dirname, 'dashboard', page, 'index.html')}`, err);
+            res.status(404).send('Page not found');
+        }
+    });
+});
+
+// API endpoint to get user data
+app.get('/api/user', async (req, res) => {
+    const username = req.query.username;
+    if (!username) {
+        return res.status(400).json({ error: 'Username is required' });
+    }
+
+    try {
+        const [results] = await db.query('SELECT firstname, lastname, email, gender, phone, country, region, city, brgy, street, profile_picture FROM user_info WHERE username = ?', [username]);
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        res.json(results[0]);
+    } catch (error) {
+        console.error('Error fetching user data:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// API endpoint to upload profile picture
+app.post('/api/upload-profile', upload.single('profilePicture'), (err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+        console.error('Multer Error:', err);
+        return res.status(400).json({ error: `Multer error: ${err.message}` });
+    } else if (err) {
+        console.error('Unexpected Error:', err);
+        return res.status(500).json({ error: `Unexpected error: ${err.message}` });
+    }
+    next();
+}, async (req, res) => {
+    const username = req.body.username;
+    if (!username) {
+        return res.status(400).json({ error: 'Username is required' });
+    }
+
+    try {
+        const file = req.file;
+        if (!file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        console.log('File received:', file);
+        const imageUrl = `/uploads/${file.filename}`;
+        await db.query('UPDATE user_info SET profile_picture = ? WHERE username = ?', [imageUrl, username]);
+        res.json({ message: 'Profile picture uploaded successfully', imageUrl });
+    } catch (error) {
+        console.error('Database or Server Error:', error);
+        res.status(500).json({ error: 'Server error during upload' });
+    }
+});
+
+// API endpoint to delete profile picture
+app.delete('/api/upload-profile', async (req, res) => {
+    const username = req.query.username;
+    if (!username) {
+        return res.status(400).json({ error: 'Username is required' });
+    }
+
+    try {
+        await db.query('UPDATE user_info SET profile_picture = NULL WHERE username = ?', [username]);
+        res.json({ message: 'Profile picture deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting profile picture:', error);
+        res.status(500).json({ error: 'Server error during deletion' });
+    }
+});
+
+// Redirect root to /dashboard
 app.get('/', (req, res) => {
-    res.redirect('/login/Login.html');
+    res.redirect('/dashboard');
 });
 
 // Test database connection
@@ -39,16 +135,11 @@ app.get('/test-db', async (req, res) => {
     }
 });
 
-// Route to handle signup
+// Signup route
 app.post('/signup', async (req, res) => {
-    const {
-        firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, password
-    } = req.body;
-
-    console.log('Form data:', req.body); // Log for debugging
+    const { firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, password } = req.body;
 
     try {
-        // Server-side validation
         const errors = [];
         if (!firstname) errors.push('First name is required');
         if (!lastname) errors.push('Last name is required');
@@ -67,10 +158,8 @@ app.post('/signup', async (req, res) => {
             return res.status(400).json({ error: errors.join(', ') });
         }
 
-        // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Insert user data into the database
         const query = `
             INSERT INTO user_info (firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, password)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -92,23 +181,20 @@ app.post('/signup', async (req, res) => {
     }
 });
 
-// Route to handle login
+// Login route
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
     try {
-        // Find user by username
         const [results] = await db.query('SELECT * FROM user_info WHERE username = ?', [username]);
         if (results.length === 0) {
             return res.status(401).json({ error: 'Invalid username or password.' });
         }
 
         const user = results[0];
-
-        // Compare password with hashed password
         const match = await bcrypt.compare(password, user.password);
         if (match) {
-            res.redirect('/dashboard/dashboard.html');
+            res.redirect('/dashboard?username=' + username); // Pass username for demo
         } else {
             res.status(401).json({ error: 'Invalid username or password.' });
         }
@@ -123,6 +209,21 @@ app.post('/login', async (req, res) => {
         res.status(500).json({ error: `Login failed: ${error.message}` });
     }
 });
+
+// MySQL database connection
+const db = mysql.createPool({
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'shadow_1'
+});
+
+// Create uploads directory if it doesn't exist
+const fs = require('fs');
+if (!fs.existsSync('uploads')) {
+    fs.mkdirSync('uploads', { recursive: true });
+    fs.chmodSync('uploads', '755'); // Ensure directory is writable
+}
 
 // Start the server
 app.listen(port, () => {

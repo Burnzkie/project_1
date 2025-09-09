@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Payment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-200 flex">
+    <div class="flex-1 p-6">
+        <h1 class="text-2xl font-bold mb-4">Student Payment</h1>
+        <div class="bg-white p-4 rounded shadow flex justify-between">
+            <table class="w-3/4 text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="border p-2">Student ID</th>
+                        <th class="border p-2">Student Name</th>
+                        <th class="border p-2">Amount</th>
+                        <th class="border p-2">Description</th>
+                        <th class="border p-2">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="border p-2">P20251</td>
+                        <td class="border p-2">John Shadow</td>
+                        <td class="border p-2">₱2,500.00</td>
+                        <td class="border p-2">Tuition</td>
+                        <td class="border p-2"><button class="bg-green-500 text-white p-1 rounded">Edit</button> <button class="bg-red-500 text-white p-1 rounded">Delete</button></td>
+                    </tr>
+                </tbody>
+            </table>
+            <div>
+                <button id="createPayment" class="bg-green-500 text-white p-2 rounded mb-2">Pay</button>
+                <button id="refundPayment" class="bg-red-500 text-white p-2 rounded">Refund</button>
+            </div>
+        </div>
+    </div>
+    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-4 rounded shadow">
+            <input placeholder="Student ID" class="border p-2 mb-2 w-full">
+            <input placeholder="Student Name" class="border p-2 mb-2 w-full">
+            <input placeholder="Amount" class="border p-2 mb-2 w-full">
+            <input placeholder="Description" class="border p-2 mb-2 w-full">
+            <button id="savePayment" class="bg-blue-500 text-white p-2 rounded">Save</button>
+            <button id="closeModal" class="bg-red-500 text-white p-2 rounded ml-2">Close</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

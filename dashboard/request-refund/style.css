@@ -1,0 +1,10 @@
+
+table {
+    border: 1px solid #e5e7eb;
+}
+th, td {
+    border: 1px solid #e5e7eb;
+}
+#modal {
+    z-index: 50;
+}

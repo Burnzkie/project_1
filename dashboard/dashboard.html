@@ -4,120 +4,60 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
-    <link rel="stylesheet" href="dash.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-  <div class="dashboard-container">
-    <div class="sidebar">
-        <h2>School Payment</h2>
-        <ul>
-            <li onclick="showSection('dashboard')">Dashboard</li>
-            <li onclick="showSection('makePayment')">Make a Payment</li>
-            <li onclick="showSection('paymentHistory')">Payment History</li>
-            <li onclick="showSection('accountSettings')">Account Settings</li>
+<body class="flex h-screen bg-gray-100">
+    <!-- Sidebar -->
+    <div class="fixed w-64 h-full bg-gray-800 text-white p-4 transition-all duration-300" id="sidebar">
+        <h2 class="text-2xl font-bold mb-6">School Admin</h2>
+        <button id="toggleSidebar" class="mb-4 text-gray-400 hover:text-white">☰</button>
+        <ul class="space-y-2">
+            <li><a href="/dashboard/profile" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-profile"><span class="mr-2">👤</span> Profile</a></li>
+            <li><a href="/dashboard/student-list" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-student-list"><span class="mr-2">📋</span> Student List</a></li>
+            <li><a href="/dashboard/payment-plan" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-payment-plan"><span class="mr-2">💰</span> Payment Plan</a></li>
+            <li><a href="/dashboard/tuition-fee" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-tuition-fee"><span class="mr-2">📚</span> Tuition Fee</a></li>
+            <li><a href="/dashboard/payment-method" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-payment-method"><span class="mr-2">💳</span> Payment Method</a></li>
+            <li><a href="/dashboard/request-refund" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-request-refund"><span class="mr-2">↩️</span> Request Refund</a></li>
+            <li><a href="/dashboard/student-payment" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-student-payment"><span class="mr-2">💸</span> Student Payment</a></li>
+            <li><a href="/dashboard/audit-log" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-audit-log"><span class="mr-2">🔍</span> Audit Log</a></li>
+            <li><a href="/dashboard/account-setting" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-account-setting"><span class="mr-2">⚙️</span> Account Setting</a></li>
+            <li><a href="/login/Login.html" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-logout"><span class="mr-2">🚪</span> Logout</a></li>
         </ul>
     </div>
-    <div class="main-content">
-        <section id="dashboard" class="dashboard-section">
-            <div class="header">
-                <h1>Dashboard</h1>
-            </div>
-            <div class="payment-summary">
-                <div class="summary-card">
-                    <h3>Total Paid</h3>
-                    <p>$5,000</p>
-                </div>
-                <div class="summary-card">
-                    <h3>Pending Payments</h3>
-                    <p>$500</p>
-                </div>
-                <div class="summary-card">
-                    <h3>Overdue Payments</h3>
-                    <p>$200</p>
+
+    <!-- Main Content -->
+    <div class="flex-1 ml-64 p-6 overflow-auto">
+        <!-- Header -->
+        <div class="bg-white p-4 mb-6 shadow rounded flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Dashboard</h1>
+            <div class="flex items-center">
+                <span class="mr-4">Welcome, John Doe</span>
+                <div class="relative">
+                    <button id="userDropdown" class="focus:outline-none">👤</button>
+                    <div id="dropdownMenu" class="hidden absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg">
+                        <a href="/dashboard/account-setting" class="block px-4 py-2 text-gray-800 hover:bg-gray-200">Account Setting</a>
+                        <a href="/login/Login.html" class="block px-4 py-2 text-gray-800 hover:bg-gray-200">Logout</a>
+                    </div>
                 </div>
             </div>
-            <div class="payment-list">
-                <h2>Recent Payments</h2>
-                <ul>
-                    <li>Payment 1 - $100 - 2024-01-01</li>
-                    <li>Payment 2 - $200 - 2024-01-15</li>
-                    <li>Payment 3 - $150 - 2024-02-01</li>
-                </ul>
-            </div>
-        </section>
+        </div>
 
-        <section id="makePayment" class="dashboard-section" style="display: none;">
-            <div class="header">
-                <h1>Make a Payment</h1>
-            </div>
-            <div class="payment-form">
-                <form id="paymentForm">
-                    <label for="studentName">Student Name:</label>
-                    <input type="text" id="studentName" name="studentName" required>
+        <!-- Breadcrumbs -->
+        <nav class="text-sm text-gray-600 mb-4" aria-label="breadcrumb">
+            <ol class="list-none p-0 inline-flex">
+                <li class="flex items-center"><a href="/dashboard" class="text-blue-500">Dashboard</a></li>
+                <li class="flex items-center ml-2">> <span id="currentPage">Home</span></li>
+            </ol>
+        </nav>
 
-                    <label for="email">Email:</label>
-                    <input type="email" id="email" name="email" required>
-
-                    <label for="paymentAmount">Payment Amount:</label>
-                    <input type="number" id="paymentAmount" name="paymentAmount" required>
-
-                    <label for="paymentMethod">Payment Method:</label>
-                    <select id="paymentMethod" name="paymentMethod">
-                        <option value="creditCard">Credit Card</option>
-                        <option value="paypal">PayPal</option>
-                        <option value="bankTransfer">Bank Transfer</option>
-                    </select>
-
-                    <button type="submit">Submit Payment</button>
-                </form>
-            </div>
-        </section>
-
-        <section id="paymentHistory" class="dashboard-section" style="display: none;">
-            <div class="header">
-                <h1>Payment History</h1>
-            </div>
-            <div class="payment-list">
-                <h2>Past Payments</h2>
-                <ul>
-                    <li>Payment 1 - $100 - 2023-12-01</li>
-                    <li>Payment 2 - $200 - 2023-11-15</li>
-                    <li>Payment 3 - $150 - 2023-10-01</li>
-                </ul>
-            </div>
-        </section>
-
-        <section id="accountSettings" class="dashboard-section" style="display: none;">
-            <div class="header">
-                <h1>Account Settings</h1>
-            </div>
-            <div class="account-settings-form">
-                <form id="accountSettingsForm">
-                    <label for="fullName">Full Name:</label>
-                    <input type="text" id="fullName" name="fullName" value="John Doe">
-
-                    <label for="emailAddress">Email Address:</label>
-                    <input type="email" id="emailAddress" name="emailAddress" value="john.doe@example.com">
-
-                    <label for="phoneNumber">Phone Number:</label>
-                    <input type="tel" id="phoneNumber" name="phoneNumber" value="123-456-7890">
-
-                    <label for="newPassword">New Password:</label>
-                    <input type="password" id="newPassword" name="newPassword" placeholder="Enter new password">
-
-                    <button type="submit">Update Account</button>
-                </form>
-
-                <div class="deactivate-account">
-                    <h3>Deactivate Account</h3>
-                    <p>Deactivating your account will temporarily suspend it. You can reactivate it later.</p>
-                    <button onclick="deactivateAccount()">Deactivate My Account</button>
-                </div>
-            </div>
-        </section>
+        <!-- Main Content Area -->
+        <div id="mainContent" class="bg-white p-6 rounded shadow">
+            <h2 class="text-xl font-semibold mb-4">Overview</h2>
+            <p>Welcome to your dashboard. Select an option from the sidebar to begin.</p>
+        </div>
     </div>
-</div>
 
-<script src="dash.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

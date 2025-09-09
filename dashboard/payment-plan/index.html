@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Plan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-200 flex">
+    <div class="flex-1 p-6">
+        <h1 class="text-2xl font-bold mb-4">Payment Plan</h1>
+        <div class="bg-white p-4 rounded shadow flex justify-between">
+            <table class="w-3/4 text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="border p-2">Plan Name</th>
+                        <th class="border p-2">Installment amount</th>
+                        <th class="border p-2">Schedule</th>
+                        <th class="border p-2">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="border p-2">S-Loan</td>
+                        <td class="border p-2">₱6,000.00</td>
+                        <td class="border p-2">6 months</td>
+                        <td class="border p-2"><button class="bg-green-500 text-white p-1 rounded">Edit</button> <button class="bg-red-500 text-white p-1 rounded">Delete</button></td>
+                    </tr>
+                </tbody>
+            </table>
+            <button id="createPlan" class="bg-blue-500 text-white p-2 rounded">Create Plan</button>
+        </div>
+    </div>
+    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-4 rounded shadow">
+            <input placeholder="Plan Name" class="border p-2 mb-2 w-full">
+            <input placeholder="Installment Amount" class="border p-2 mb-2 w-full">
+            <input placeholder="Schedule" class="border p-2 mb-2 w-full">
+            <button id="savePlan" class="bg-blue-500 text-white p-2 rounded">Save</button>
+            <button id="closeModal" class="bg-red-500 text-white p-2 rounded ml-2">Close</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

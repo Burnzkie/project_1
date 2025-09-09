@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student List</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-200 flex">
+    <div class="flex-1 p-6">
+        <h1 class="text-2xl font-bold mb-4">Student List</h1>
+        <div class="bg-white p-4 rounded shadow">
+            <button id="addStudent" class="bg-green-500 text-white p-2 rounded mb-4">Add Student</button>
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="border p-2">Id</th>
+                        <th class="border p-2">Name</th>
+                        <th class="border p-2">Program</th>
+                        <th class="border p-2">Year Level</th>
+                        <th class="border p-2">Date</th>
+                        <th class="border p-2">Email</th>
+                        <th class="border p-2">Contact</th>
+                        <th class="border p-2">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="border p-2">Std10251</td>
+                        <td class="border p-2">Shad Burn</td>
+                        <td class="border p-2">BSIT</td>
+                        <td class="border p-2">Second Year</td>
+                        <td class="border p-2">08-30-25</td>
+                        <td class="border p-2">123@gmail.com</td>
+                        <td class="border p-2">09123456789</td>
+                        <td class="border p-2"><button class="bg-green-500 text-white p-1 rounded">Edit</button> <button class="bg-red-500 text-white p-1 rounded">Delete</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-4 rounded shadow">
+            <input placeholder="Name" class="border p-2 mb-2 w-full">
+            <input placeholder="Program" class="border p-2 mb-2 w-full">
+            <input placeholder="Year Level" class="border p-2 mb-2 w-full">
+            <input placeholder="Date" class="border p-2 mb-2 w-full">
+            <input placeholder="Email" class="border p-2 mb-2 w-full">
+            <input placeholder="Contact" class="border p-2 mb-2 w-full">
+            <button id="saveStudent" class="bg-blue-500 text-white p-2 rounded">Save</button>
+            <button id="closeModal" class="bg-red-500 text-white p-2 rounded ml-2">Close</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
