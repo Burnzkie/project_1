@@ -1,61 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>School Online Payment</title>
     <link rel="stylesheet" href="/login/style.css">
 </head>
-
 <body>
     <div class="container">
-        
-                <!-- Login form -->
-        <form action="" id="loginForm">
+        <!-- Login form -->
+        <form action="/login" id="loginForm" method="POST">
             <h1>Login</h1>
-
             <div class="form-control">
-                 <label for="username"> Username</label>
-                 <input type="text" id="username">
+                 <label for="username">Username</label>
+                 <input type="text" id="username" name="username">
                  <small class="message-error"></small>
             </div>
             <div class="form-control">
-                 <label for="password"> Password</label>
-                 <input type="password" id="password">
+                 <label for="password">Password</label>
+                 <input type="password" id="password" name="password">
                  <small class="message-error"></small>
             </div>
-
-            <p>Don't have an account? <a href="#" id="toSignup"> Sign up</a></p>
-
+            <p>Don't have an account? <a href="#" id="toSignup">Sign up</a></p>
             <button id="login">Login</button>
-
-            
         </form>
 
         <!-- Sign up Form -->
-        <form action="" id="signupForm">
+        <form action="/signup" id="signupForm" method="POST">
             <h1>Sign Up</h1>
-
             <div class="form-control">
-                 <label for="firstname"> First Name</label>
-                 <input type="text" id="firstname">
+                 <label for="firstname">First Name</label>
+                 <input type="text" id="firstname" name="firstname">
                  <small class="message-error"></small>
             </div>
             <div class="form-control">
-                 <label for="lastname"> Last Name</label>
-                 <input type="text" id="lastname">
+                 <label for="lastname">Last Name</label>
+                 <input type="text" id="lastname" name="lastname">
                  <small class="message-error"></small>
             </div>
             <div class="form-control">
-                 <label for="email"> Email</label>
-                 <input type="email" id="email">
+                 <label for="email">Email</label>
+                 <input type="email" id="email" name="email">
                  <small class="message-error"></small>
             </div>
             <div class="form-select">
                 <label for="gender">Gender</label>
-                <select name="" id="gender">
-                    <option selected disabled> Choose your gender</option>
+                <select name="gender" id="gender">
+                    <option selected disabled>Choose your gender</option>
                     <option value="m">Male</option>
                     <option value="f">Female</option>
                     <option value="o">Other</option>
@@ -64,44 +55,48 @@
             </div>
             <div class="form-control">
                 <label for="phone">Phone No.</label>
-                <input type="number" id="phone">
+                <input type="number" id="phone" name="phone">
                 <small class="message-error"></small>
             </div>
-            
             <div class="form-control">
                 <label for="country">Country</label>
-                <input type="text" id="country">
+                <input type="text" id="country" name="country">
                 <small class="message-error"></small>
             </div>
             <div class="form-control">
                 <label for="region">Region</label>
-                <input type="text" id="region">
+                <input type="text" id="region" name="region">
                 <small class="message-error"></small>
             </div>
             <div class="form-control">
                 <label for="city">City</label>
-                <input type="text" id="city">
+                <input type="text" id="city" name="city">
                 <small class="message-error"></small>
             </div>
             <div class="form-control">
                 <label for="brgy">Barangay</label>
-                <input type="text" id="brgy">
+                <input type="text" id="brgy" name="brgy">
                 <small class="message-error"></small>
             </div>
             <div class="form-control">
                 <label for="street">Street</label>
-                <input type="text" id="street">
+                <input type="text" id="street" name="street">
                 <small class="message-error"></small>
             </div>
-
-            <p>Already have an account? <a href="#" id="toLogin"> Login</a></p>
-
+            <div class="form-control">
+                <label for="username">Username</label>
+                <input type="text" id="signupUsername" name="username">
+                <small class="message-error"></small>
+            </div>
+            <div class="form-control">
+                <label for="password">Password</label>
+                <input type="password" id="signupPassword" name="password">
+                <small class="message-error"></small>
+            </div>
+            <p>Already have an account? <a href="#" id="toLogin">Login</a></p>
             <button id="signup">Sign up</button>
-           
         </form>
     </div>
-
-    <script src="login.js"></script>
+    <script src="/login/login.js"></script>
 </body>
-
 </html>

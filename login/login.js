@@ -45,13 +45,13 @@ function validateInput(input) {
     const id = input.id;
     const value = input.value.trim();
 
-    if (id === 'username') {
+    if (id === 'username' || id === 'signupUsername') {
         if (!value) {
             setError(input, 'Username is required');
         } else {
             clearError(input);
         }
-    } else if (id === 'password') {
+    } else if (id === 'password' || id === 'signupPassword') {
         if (!value) {
             setError(input, 'Password is required');
         } else if (value.length < 6) {
@@ -130,10 +130,12 @@ function validateSignupForm() {
     const city = document.querySelector('#city');
     const brgy = document.querySelector('#brgy');
     const street = document.querySelector('#street');
+    const username = document.querySelector('#signupUsername');
+    const password = document.querySelector('#signupPassword');
     let isValid = true;
 
     // Clear previous errors
-    [firstname, lastname, email, gender, phone, country, region, city, brgy, street].forEach(clearError);
+    [firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, password].forEach(clearError);
 
     // Firstname validation
     if (!firstname.value.trim()) {
@@ -201,6 +203,21 @@ function validateSignupForm() {
         isValid = false;
     }
 
+    // Username validation
+    if (!username.value.trim()) {
+        setError(username, 'Username is required');
+        isValid = false;
+    }
+
+    // Password validation
+    if (!password.value.trim()) {
+        setError(password, 'Password is required');
+        isValid = false;
+    } else if (password.value.length < 6) {
+        setError(password, 'Password must be at least 6 characters');
+        isValid = false;
+    }
+
     return isValid;
 }
 
@@ -220,23 +237,36 @@ signupInputs.forEach(input => {
 });
 
 // Handle login form submission
-loginBtn.addEventListener('click', (e) => {
+loginBtn.addEventListener('click', async (e) => {
     e.preventDefault();
     if (validateLoginForm()) {
-        // Simulate login (replace with actual API call or backend logic)
         const username = document.querySelector('#username').value;
         const password = document.querySelector('#password').value;
-        console.log('Login submitted:', { username, password });
-        alert('Login successful!'); // Replace with actual redirect or logic
-        loginForm.reset();
+
+        try {
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (response.redirected) {
+                window.location.href = response.url; // Follow server redirect to dashboard
+            } else {
+                const data = await response.json();
+                alert(data.error || 'Login failed. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error during login:', error);
+            alert('An error occurred. Please try again.');
+        }
     }
 });
 
 // Handle signup form submission
-signupBtn.addEventListener('click', (e) => {
+signupBtn.addEventListener('click', async (e) => {
     e.preventDefault();
     if (validateSignupForm()) {
-        // Simulate signup (replace with actual API call or backend logic)
         const formData = {
             firstname: document.querySelector('#firstname').value,
             lastname: document.querySelector('#lastname').value,
@@ -247,18 +277,30 @@ signupBtn.addEventListener('click', (e) => {
             region: document.querySelector('#region').value,
             city: document.querySelector('#city').value,
             brgy: document.querySelector('#brgy').value,
-            street: document.querySelector('#street').value
+            street: document.querySelector('#street').value,
+            username: document.querySelector('#signupUsername').value,
+            password: document.querySelector('#signupPassword').value
         };
-        console.log('Signup submitted:', formData);
-        alert('Sign up successful!'); // Replace with actual redirect or logic
-        signupForm.reset();
-        // Switch back to login form
-        signupForm.style.display = 'none';
-        loginForm.style.display = 'block';
+
+        try {
+            const response = await fetch('/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+
+            if (response.redirected) {
+                window.location.href = response.url; // Follow server redirect to login
+                signupForm.reset();
+                signupForm.style.display = 'none';
+                loginForm.style.display = 'block';
+            } else {
+                const data = await response.json();
+                alert(data.error || 'Registration failed. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error during signup:', error);
+            alert('An error occurred during registration.');
+        }
     }
 });
-
-// Remove error styling from login.js (already in style.css)
-const style = document.createElement('style');
-style.textContent = '';
-document.head.appendChild(style);
