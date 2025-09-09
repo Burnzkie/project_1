@@ -258,7 +258,7 @@ loginBtn.addEventListener('click', async (e) => {
             }
         } catch (error) {
             console.error('Error during login:', error);
-            alert('An error occurred. Please try again.');
+            alert('An error occurred during login. Please try again.');
         }
     }
 });
@@ -300,7 +300,7 @@ signupBtn.addEventListener('click', async (e) => {
             }
         } catch (error) {
             console.error('Error during signup:', error);
-            alert('An error occurred during registration.');
+            alert('An error occurred during registration. Please try again.');
         }
     }
 });

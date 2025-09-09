@@ -1,5 +1,5 @@
 const express = require('express');
-const mysql = require('mysql2');
+const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
 const bodyParser = require('body-parser');
 const path = require('path');
@@ -16,24 +16,27 @@ app.use('/login', express.static(path.join(__dirname, 'login')));
 app.use('/dashboard', express.static(path.join(__dirname, 'dashboard')));
 
 // MySQL database connection
-const db = mysql.createConnection({
+const db = mysql.createPool({
     host: 'localhost',
-    user: 'root', // Replace with your MySQL username
-    password: "", // Replace with your MySQL password
+    user: 'root',
+    password: '', // Empty for XAMPP default
     database: 'shadow_1'
-});
-
-db.connect(err => {
-    if (err) {
-        console.error('Database connection failed:', err);
-        return;
-    }
-    console.log('Connected to MySQL database');
 });
 
 // Redirect root to /login
 app.get('/', (req, res) => {
     res.redirect('/login/Login.html');
+});
+
+// Test database connection
+app.get('/test-db', async (req, res) => {
+    try {
+        await db.query('SELECT 1');
+        res.send('Database connection successful');
+    } catch (error) {
+        console.error('Database test error:', error);
+        res.status(500).send(`Database connection failed: ${error.message}`);
+    }
 });
 
 // Route to handle signup
@@ -42,40 +45,60 @@ app.post('/signup', async (req, res) => {
         firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, password
     } = req.body;
 
+    console.log('Form data:', req.body); // Log for debugging
+
     try {
+        // Server-side validation
+        const errors = [];
+        if (!firstname) errors.push('First name is required');
+        if (!lastname) errors.push('Last name is required');
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Valid email is required');
+        if (!gender || gender === 'Choose your gender') errors.push('Gender is required');
+        if (!phone || !/^\d{10,}$/.test(phone)) errors.push('Valid phone number (at least 10 digits) is required');
+        if (!country) errors.push('Country is required');
+        if (!region) errors.push('Region is required');
+        if (!city) errors.push('City is required');
+        if (!brgy) errors.push('Barangay is required');
+        if (!street) errors.push('Street is required');
+        if (!username) errors.push('Username is required');
+        if (!password || password.length < 6) errors.push('Password must be at least 6 characters');
+
+        if (errors.length > 0) {
+            return res.status(400).json({ error: errors.join(', ') });
+        }
+
         // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Insert user data into the database
         const query = `
-            INSERT INTO users (firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, password)
+            INSERT INTO user_info (firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, password)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        db.query(query, [firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, hashedPassword], (err, result) => {
-            if (err) {
-                console.error('Error saving user:', err);
-                return res.status(500).json({ error: 'Registration failed. Email or username may already exist.' });
-            }
-            // Redirect to login page after successful signup
-            res.redirect('/login/Login.html');
-        });
+        await db.query(query, [firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, hashedPassword]);
+        res.redirect('/login/Login.html');
     } catch (error) {
         console.error('Error during signup:', error);
-        res.status(500).json({ error: 'Server error during registration.' });
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ error: 'Email or username already exists.' });
+        }
+        if (error.code === 'ER_NO_SUCH_TABLE') {
+            return res.status(500).json({ error: 'Database table "user_info" does not exist.' });
+        }
+        if (error.code === 'ER_BAD_DB_ERROR') {
+            return res.status(500).json({ error: 'Database "shadow_1" does not exist.' });
+        }
+        res.status(500).json({ error: `Server error during registration: ${error.message}` });
     }
 });
 
 // Route to handle login
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
-    // Find user by username
-    db.query('SELECT * FROM users WHERE username = ?', [username], async (err, results) => {
-        if (err) {
-            console.error('Error querying user:', err);
-            return res.status(500).json({ error: 'Login failed. Please try again.' });
-        }
-
+    try {
+        // Find user by username
+        const [results] = await db.query('SELECT * FROM user_info WHERE username = ?', [username]);
         if (results.length === 0) {
             return res.status(401).json({ error: 'Invalid username or password.' });
         }
@@ -85,12 +108,20 @@ app.post('/login', (req, res) => {
         // Compare password with hashed password
         const match = await bcrypt.compare(password, user.password);
         if (match) {
-            // Redirect to dashboard on successful login
             res.redirect('/dashboard/dashboard.html');
         } else {
             res.status(401).json({ error: 'Invalid username or password.' });
         }
-    });
+    } catch (error) {
+        console.error('Error during login:', error);
+        if (error.code === 'ER_NO_SUCH_TABLE') {
+            return res.status(500).json({ error: 'Database table "user_info" does not exist.' });
+        }
+        if (error.code === 'ER_BAD_DB_ERROR') {
+            return res.status(500).json({ error: 'Database "shadow_1" does not exist.' });
+        }
+        res.status(500).json({ error: `Login failed: ${error.message}` });
+    }
 });
 
 // Start the server
