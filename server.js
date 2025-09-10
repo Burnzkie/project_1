@@ -5,26 +5,84 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const multer = require('multer');
 const cors = require('cors');
+const session = require('express-session');
+const fs = require('fs');
 
 const app = express();
 const port = 3000;
+
+// MySQL database connection
+const db = mysql.createPool({
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'shadow_1'
+});
 
 // Middleware
 app.use(cors()); // Enable CORS for development
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-
-// Serve static files
+app.use(express.static(path.join(__dirname, 'public'))); // Serve public directory
 app.use('/dashboard', express.static(path.join(__dirname, 'dashboard')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/login', express.static(path.join(__dirname, 'login')));
 
-// Multer configuration for file storage
+// Session middleware
+app.use(session({
+    secret: 'your-secret-key', // Replace with a strong secret
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false } // Set to true if using HTTPS
+}));
+
+// Authentication middleware
+function isAuthenticated(req, res, next) {
+    if (req.session.user) {
+        return next();
+    }
+    res.redirect('/login/Login.html');
+}
+
+// Create uploads directory
+if (!fs.existsSync('uploads')) {
+    fs.mkdirSync('uploads', { recursive: true });
+    fs.chmodSync('uploads', '755');
+}
+
+// Serve login page
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'login', 'Login.html'));
+});
+
+// Protect dashboard routes
+app.get('/dashboard/:page', isAuthenticated, (req, res) => {
+    const page = req.params.page === 'index.html' ? 'index' : req.params.page;
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.sendFile(path.join(__dirname, 'dashboard', page, 'index.html'), (err) => {
+        if (err) {
+            console.error(`File not found: ${path.join(__dirname, 'dashboard', page, 'index.html')}`, err);
+            res.status(404).send('Page not found');
+        }
+    });
+});
+
+app.get('/dashboard', isAuthenticated, (req, res) => {
+    res.sendFile(path.join(__dirname, 'dashboard', 'index.html'), (err) => {
+        if (err) {
+            console.error(`File not found: ${path.join(__dirname, 'dashboard', 'index.html')}`, err);
+            res.status(404).send('Page not found');
+        }
+    });
+});
+
+// Multer configuration
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'uploads/'); // Directory to save files
+        cb(null, 'uploads/');
     },
     filename: function (req, file, cb) {
-        cb(null, Date.now() + '-' + file.originalname); // Unique filename
+        cb(null, Date.now() + '-' + file.originalname);
     }
 });
 
@@ -40,20 +98,8 @@ const upload = multer({
     limits: { fileSize: 1024 * 1024 * 5 } // 5MB limit
 });
 
-// Dynamic routing for subpages with no caching
-app.get('/dashboard/:page', (req, res) => {
-    const page = req.params.page === 'index.html' ? 'index' : req.params.page;
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.sendFile(path.join(__dirname, 'dashboard', page, 'index.html'), (err) => {
-        if (err) {
-            console.error(`File not found: ${path.join(__dirname, 'dashboard', page, 'index.html')}`, err);
-            res.status(404).send('Page not found');
-        }
-    });
-});
-
 // API endpoint to get user data
-app.get('/api/user', async (req, res) => {
+app.get('/api/user', isAuthenticated, async (req, res) => {
     const username = req.query.username;
     if (!username) {
         return res.status(400).json({ error: 'Username is required' });
@@ -72,7 +118,7 @@ app.get('/api/user', async (req, res) => {
 });
 
 // API endpoint to upload profile picture
-app.post('/api/upload-profile', upload.single('profilePicture'), (err, req, res, next) => {
+app.post('/api/upload-profile', isAuthenticated, upload.single('profilePicture'), (err, req, res, next) => {
     if (err instanceof multer.MulterError) {
         console.error('Multer Error:', err);
         return res.status(400).json({ error: `Multer error: ${err.message}` });
@@ -93,7 +139,6 @@ app.post('/api/upload-profile', upload.single('profilePicture'), (err, req, res,
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        console.log('File received:', file);
         const imageUrl = `/uploads/${file.filename}`;
         await db.query('UPDATE user_info SET profile_picture = ? WHERE username = ?', [imageUrl, username]);
         res.json({ message: 'Profile picture uploaded successfully', imageUrl });
@@ -104,7 +149,7 @@ app.post('/api/upload-profile', upload.single('profilePicture'), (err, req, res,
 });
 
 // API endpoint to delete profile picture
-app.delete('/api/upload-profile', async (req, res) => {
+app.delete('/api/upload-profile', isAuthenticated, async (req, res) => {
     const username = req.query.username;
     if (!username) {
         return res.status(400).json({ error: 'Username is required' });
@@ -117,11 +162,6 @@ app.delete('/api/upload-profile', async (req, res) => {
         console.error('Error deleting profile picture:', error);
         res.status(500).json({ error: 'Server error during deletion' });
     }
-});
-
-// Redirect root to /dashboard
-app.get('/', (req, res) => {
-    res.redirect('/dashboard');
 });
 
 // Test database connection
@@ -194,7 +234,8 @@ app.post('/login', async (req, res) => {
         const user = results[0];
         const match = await bcrypt.compare(password, user.password);
         if (match) {
-            res.redirect('/dashboard?username=' + username); // Pass username for demo
+            req.session.user = { username: user.username }; // Store user in session
+            res.redirect(`/dashboard?username=${username}`);
         } else {
             res.status(401).json({ error: 'Invalid username or password.' });
         }
@@ -210,20 +251,16 @@ app.post('/login', async (req, res) => {
     }
 });
 
-// MySQL database connection
-const db = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'shadow_1'
+// Logout route
+app.get('/logout', (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('Error during logout:', err);
+            return res.status(500).json({ error: 'Logout failed' });
+        }
+        res.redirect('/login/Login.html');
+    });
 });
-
-// Create uploads directory if it doesn't exist
-const fs = require('fs');
-if (!fs.existsSync('uploads')) {
-    fs.mkdirSync('uploads', { recursive: true });
-    fs.chmodSync('uploads', '755'); // Ensure directory is writable
-}
 
 // Start the server
 app.listen(port, () => {

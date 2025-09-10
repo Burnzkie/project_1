@@ -96,17 +96,14 @@ function validateLoginForm() {
     const password = document.querySelector('#password');
     let isValid = true;
 
-    // Clear previous errors
     clearError(username);
     clearError(password);
 
-    // Username validation
     if (!username.value.trim()) {
         setError(username, 'Username is required');
         isValid = false;
     }
 
-    // Password validation
     if (!password.value.trim()) {
         setError(password, 'Password is required');
         isValid = false;
@@ -134,22 +131,18 @@ function validateSignupForm() {
     const password = document.querySelector('#signupPassword');
     let isValid = true;
 
-    // Clear previous errors
     [firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, password].forEach(clearError);
 
-    // Firstname validation
     if (!firstname.value.trim()) {
         setError(firstname, 'First name is required');
         isValid = false;
     }
 
-    // Lastname validation
     if (!lastname.value.trim()) {
         setError(lastname, 'Last name is required');
         isValid = false;
     }
 
-    // Email validation
     if (!email.value.trim()) {
         setError(email, 'Email is required');
         isValid = false;
@@ -158,13 +151,11 @@ function validateSignupForm() {
         isValid = false;
     }
 
-    // Gender validation
     if (gender.value === 'Choose your gender') {
         setError(gender, 'Please select a gender');
         isValid = false;
     }
 
-    // Phone validation
     if (!phone.value.trim()) {
         setError(phone, 'Phone number is required');
         isValid = false;
@@ -173,43 +164,36 @@ function validateSignupForm() {
         isValid = false;
     }
 
-    // Country validation
     if (!country.value.trim()) {
         setError(country, 'Country is required');
         isValid = false;
     }
 
-    // Region validation
     if (!region.value.trim()) {
         setError(region, 'Region is required');
         isValid = false;
     }
 
-    // City validation
     if (!city.value.trim()) {
         setError(city, 'City is required');
         isValid = false;
     }
 
-    // Barangay validation
     if (!brgy.value.trim()) {
         setError(brgy, 'Barangay is required');
         isValid = false;
     }
 
-    // Street validation
     if (!street.value.trim()) {
         setError(street, 'Street is required');
         isValid = false;
     }
 
-    // Username validation
     if (!username.value.trim()) {
         setError(username, 'Username is required');
         isValid = false;
     }
 
-    // Password validation
     if (!password.value.trim()) {
         setError(password, 'Password is required');
         isValid = false;
@@ -251,7 +235,7 @@ loginBtn.addEventListener('click', async (e) => {
             });
 
             if (response.redirected) {
-                window.location.href = response.url; // Follow server redirect to dashboard
+                window.location.href = response.url;
             } else {
                 const data = await response.json();
                 alert(data.error || 'Login failed. Please try again.');
@@ -290,7 +274,7 @@ signupBtn.addEventListener('click', async (e) => {
             });
 
             if (response.redirected) {
-                window.location.href = response.url; // Follow server redirect to login
+                window.location.href = response.url;
                 signupForm.reset();
                 signupForm.style.display = 'none';
                 loginForm.style.display = 'block';
