@@ -1,9 +1,148 @@
+/* General Styles */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f3f4f6;
+    color: #1f2937;
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+}
+
+/* Sidebar Styles */
+#sidebar {
+    z-index: 10;
+}
+#sidebar.collapsed {
+    width: 80px;
+}
+#sidebar.collapsed ul a span:first-child {
+    margin-right: 0;
+}
+#sidebar.collapsed ul a {
+    text-align: center;
+    padding: 10px;
+}
+
+/* Table Styles */
 table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #ffffff;
     border: 1px solid #e5e7eb;
+    margin-bottom: 20px;
 }
+
 th, td {
+    padding: 12px;
+    text-align: left;
     border: 1px solid #e5e7eb;
 }
+
+th {
+    background-color: #f9fafb;
+    font-weight: 600;
+}
+
+tr:nth-child(even) {
+    background-color: #f3f4f6;
+}
+
+tr:hover {
+    background-color: #e5e7eb;
+    transition: background-color 0.2s;
+}
+
+/* Modal Styles */
 #modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     z-index: 50;
+    width: 90%;
+    max-width: 500px;
+}
+
+#modal.show {
+    display: block;
+}
+
+#modal .close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    color: #6b7280;
+}
+
+#modal .close:hover {
+    color: #1f2937;
+}
+
+#modal input {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+}
+
+#modal button {
+    padding: 8px 16px;
+    margin-right: 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#modal button:hover {
+    opacity: 0.9;
+}
+
+button.bg-green-500 {
+    background-color: #10b981;
+    color: #ffffff;
+}
+
+button.bg-red-500 {
+    background-color: #ef4444;
+    color: #ffffff;
+}
+
+button.bg-blue-500 {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+
+/* Overlay for Modals */
+#overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+}
+
+#overlay.show {
+    display: block;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    table {
+        overflow-x: auto;
+        display: block;
+    }
+    #modal {
+        width: 95%;
+    }
 }

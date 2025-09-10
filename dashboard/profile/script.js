@@ -1,155 +1,181 @@
+// Utility function for API requests
+async function apiRequest(url, method, data = null) {
+    try {
+        const options = {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+        };
+        if (data) {
+            options.body = JSON.stringify(data);
+        }
+        const response = await fetch(url, options);
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error('API request error:', error);
+        alert(`Error: ${error.message}`);
+        throw error;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const username = urlParams.get('username');
     const profilePic = document.getElementById('profilePic');
+    const profileImage = document.getElementById('profileImage');
+    const defaultText = document.getElementById('defaultText');
     const actionModal = document.getElementById('actionModal');
     const editModal = document.getElementById('editModal');
     const uploadModal = document.getElementById('uploadModal');
-    const profileImage = document.getElementById('profileImage');
+    const viewProfileBtn = document.getElementById('viewProfile');
+    const editProfileBtn = document.getElementById('editProfile');
+    const uploadProfileBtn = document.getElementById('uploadProfile');
+    const deleteProfileBtn = document.getElementById('deleteProfile');
+    const closeModalBtn = document.getElementById('closeModal');
+    const saveProfileBtn = document.getElementById('saveProfile');
+    const closeEditModalBtn = document.getElementById('closeEditModal');
+    const uploadProfilePictureBtn = document.getElementById('uploadProfilePicture');
+    const closeUploadModalBtn = document.getElementById('closeUploadModal');
+    const profilePictureInput = document.getElementById('profilePictureInput');
     const userInfo = document.getElementById('userInfo');
 
-    // Fetch user data when the page loads
-    if (username) {
-        fetch(`/api/user?username=${encodeURIComponent(username)}`)
-            .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
-                return response.json();
-            })
-            .then(data => {
-                document.getElementById('firstname').textContent = data.firstname || 'N/A';
-                document.getElementById('lastname').textContent = data.lastname || 'N/A';
-                document.getElementById('email').textContent = data.email || 'N/A';
-                document.getElementById('phone').textContent = data.phone || 'N/A';
-                document.getElementById('gender').textContent = data.gender || 'N/A';
-                document.getElementById('dob').textContent = data.dob || 'N/A'; // Updated to use dob if available
-                if (data.profile_picture) {
-                    profileImage.src = data.profile_picture;
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching user data:', error);
-                userInfo.innerHTML = '<p>Error loading profile data.</p>';
-            });
-    } else {
-        userInfo.innerHTML = '<p>Username not provided.</p>';
+    // Read Profile
+    async function readProfile() {
+        try {
+            const data = await apiRequest('/api/profile', 'GET');
+            document.getElementById('firstname').textContent = data.firstname || 'N/A';
+            document.getElementById('lastname').textContent = data.lastname || 'N/A';
+            document.getElementById('email').textContent = data.email || 'N/A';
+            document.getElementById('phone').textContent = data.phone || 'N/A';
+            document.getElementById('gender').textContent = data.gender || 'N/A';
+            document.getElementById('dob').textContent = data.dob || 'N/A';
+            if (data.profile_picture) {
+                profileImage.src = data.profile_picture;
+                defaultText.style.display = 'none';
+            } else {
+                profileImage.src = 'https://via.placeholder.com/96';
+                defaultText.style.display = 'block';
+            }
+        } catch (error) {
+            userInfo.innerHTML = '<p>Error loading profile data.</p>';
+        }
     }
 
-    // Profile Picture Modal and Actions
-    profilePic.addEventListener('click', () => {
-        actionModal.classList.remove('hidden');
-    });
-
-    document.getElementById('closeModal').addEventListener('click', () => {
-        actionModal.classList.add('hidden');
-    });
-
-    // View Profile Picture
-    document.getElementById('viewProfile').addEventListener('click', () => {
-        if (profileImage.src === 'https://via.placeholder.com/96') {
-            alert('No profile picture available to view.');
-        } else {
-            window.open(profileImage.src, '_blank');
+    // Update Profile
+    async function updateProfile() {
+        const profile = {
+            firstname: document.getElementById('editFirstname').value,
+            lastname: document.getElementById('editLastname').value,
+            email: document.getElementById('editEmail').value,
+            phone: document.getElementById('editPhone').value,
+            gender: document.getElementById('editGender').value,
+            dob: document.getElementById('editDob').value
+        };
+        try {
+            await apiRequest('/api/profile', 'PUT', profile);
+            readProfile();
+            editModal.classList.add('hidden');
+            alert('Profile updated successfully!');
+        } catch (error) {
+            // Error handled in apiRequest
         }
+    }
+
+    // Upload Profile Picture
+    async function uploadProfilePicture() {
+        const file = profilePictureInput.files[0];
+        if (!file) {
+            alert('Please select an image.');
+            return;
+        }
+        const formData = new FormData();
+        formData.append('profilePicture', file);
+        try {
+            const response = await fetch('/api/profile-picture', {
+                method: 'POST',
+                body: formData
+            });
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            const data = await response.json();
+            profileImage.src = data.path;
+            defaultText.style.display = 'none';
+            uploadModal.classList.add('hidden');
+            profilePictureInput.value = '';
+            alert('Profile picture uploaded successfully!');
+        } catch (error) {
+            console.error('Error uploading profile picture:', error);
+            alert(`Error: ${error.message}`);
+        }
+    }
+
+    // Delete Profile Picture
+    async function deleteProfilePicture() {
+        try {
+            await apiRequest('/api/profile-picture', 'DELETE');
+            profileImage.src = 'https://via.placeholder.com/96';
+            defaultText.style.display = 'block';
+            actionModal.classList.add('hidden');
+            alert('Profile picture deleted successfully!');
+        } catch (error) {
+            // Error handled in apiRequest
+        }
+    }
+
+    // Event Listeners
+    profilePic?.addEventListener('click', () => actionModal.classList.remove('hidden'));
+    viewProfileBtn?.addEventListener('click', () => {
+        alert('Viewing profile...');
         actionModal.classList.add('hidden');
     });
-
-    // Edit Profile Picture
-    document.getElementById('editProfile').addEventListener('click', () => {
+    editProfileBtn?.addEventListener('click', async () => {
         actionModal.classList.add('hidden');
-        editModal.classList.remove('hidden');
-        document.getElementById('editCaption').value = profileImage.alt || '';
+        try {
+            const data = await apiRequest('/api/profile', 'GET');
+            document.getElementById('editFirstname').value = data.firstname || '';
+            document.getElementById('editLastname').value = data.lastname || '';
+            document.getElementById('editEmail').value = data.email || '';
+            document.getElementById('editPhone').value = data.phone || '';
+            document.getElementById('editGender').value = data.gender || '';
+            document.getElementById('editDob').value = data.dob || '';
+            editModal.classList.remove('hidden');
+        } catch (error) {
+            // Error handled in apiRequest
+        }
     });
-
-    document.getElementById('saveEdit').addEventListener('click', () => {
-        const caption = document.getElementById('editCaption').value;
-        profileImage.alt = caption;
-        alert(`Profile picture caption updated to: ${caption}`);
-        editModal.classList.add('hidden');
-    });
-
-    document.getElementById('cancelEdit').addEventListener('click', () => {
-        editModal.classList.add('hidden');
-    });
-
-    // Upload New Profile Picture
-    document.getElementById('uploadProfile').addEventListener('click', () => {
+    uploadProfileBtn?.addEventListener('click', () => {
         actionModal.classList.add('hidden');
         uploadModal.classList.remove('hidden');
     });
-
-    document.getElementById('uploadSave').addEventListener('click', () => {
-        const fileInput = document.getElementById('profileUpload');
-        if (fileInput.files.length > 0) {
-            const formData = new FormData();
-            formData.append('profilePicture', fileInput.files[0]);
-            formData.append('username', username);
-            console.log('Sending FormData:', Array.from(formData.entries())); // Debug
-
-            fetch('/api/upload-profile', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) throw new Error(`Upload failed: ${response.status} - ${response.statusText}`);
-                return response.json();
-            })
-            .then(data => {
-                if (data.imageUrl) {
-                    profileImage.src = data.imageUrl;
-                    profileImage.alt = fileInput.files[0].name;
-                    alert('Profile picture uploaded successfully!');
-                    // Reload page to reflect changes
-                    window.location.reload();
-                } else {
-                    alert('Upload failed: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                console.error('Error uploading profile picture:', error);
-                alert('Error uploading profile picture: ' + error.message);
-            });
-        } else {
-            alert('Please select a file to upload.');
-        }
+    deleteProfileBtn?.addEventListener('click', deleteProfilePicture);
+    closeModalBtn?.addEventListener('click', () => actionModal.classList.add('hidden'));
+    saveProfileBtn?.addEventListener('click', updateProfile);
+    closeEditModalBtn?.addEventListener('click', () => {
+        editModal.classList.add('hidden');
+        editModal.querySelectorAll('input').forEach(input => input.value = '');
+    });
+    uploadProfilePictureBtn?.addEventListener('click', uploadProfilePicture);
+    closeUploadModalBtn?.addEventListener('click', () => {
         uploadModal.classList.add('hidden');
-        fileInput.value = ''; // Clear file input
+        profilePictureInput.value = '';
     });
 
-    document.getElementById('cancelUpload').addEventListener('click', () => {
-        uploadModal.classList.add('hidden');
-        document.getElementById('profileUpload').value = '';
-    });
+    // Initialize
+    readProfile();
+});
 
-    // Delete Profile Picture
-    document.getElementById('deleteProfile').addEventListener('click', () => {
-        if (profileImage.src !== 'https://via.placeholder.com/96') {
-            if (confirm('Are you sure you want to delete your profile picture?')) {
-                fetch(`/api/upload-profile?username=${encodeURIComponent(username)}&delete=true`, {
-                    method: 'DELETE'
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error(`Delete failed: ${response.status} - ${response.statusText}`);
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.message) {
-                        profileImage.src = 'https://via.placeholder.com/96';
-                        profileImage.alt = '';
-                        alert('Profile picture deleted.');
-                        // Reload page to reflect changes
-                        window.location.reload();
-                    } else {
-                        alert('Delete failed: ' + (data.error || 'Unknown error'));
-                    }
-                })
-                .catch(error => {
-                    console.error('Error deleting profile picture:', error);
-                    alert('Error deleting profile picture: ' + error.message);
-                });
-            }
-        } else {
-            alert('No profile picture to delete.');
-        }
-        actionModal.classList.add('hidden');
+// Sidebar toggle
+document.getElementById('toggleSidebar').addEventListener('click', () => {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('collapsed');
+});
+
+// Highlight active page
+const navLinks = document.querySelectorAll('ul a');
+const currentPage = window.location.pathname.split('/').pop();
+navLinks.forEach(link => {
+    if (link.getAttribute('href').includes(currentPage)) {
+        link.classList.add('bg-gray-700');
+    }
+    link.addEventListener('click', () => {
+        navLinks.forEach(l => l.classList.remove('bg-gray-700'));
+        link.classList.add('bg-gray-700');
     });
 });

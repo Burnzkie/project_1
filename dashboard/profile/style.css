@@ -1,15 +1,109 @@
+/* General Styles */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f3f4f6;
+    color: #1f2937;
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+}
+
+/* Sidebar Styles */
+#sidebar {
+    z-index: 10;
+}
+#sidebar.collapsed {
+    width: 80px;
+}
+#sidebar.collapsed ul a span:first-child {
+    margin-right: 0;
+}
+#sidebar.collapsed ul a {
+    text-align: center;
+    padding: 10px;
+}
+
+/* Profile Container Styles */
+#profileContainer {
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
 #profilePic:hover {
-    background-color: #d1d5db;
+    opacity: 0.8;
 }
-#defaultText {
-    display: block;
-}
-#profileImage[src="https://via.placeholder.com/96"] + #defaultText {
-    display: block;
-}
-#profileImage:not([src="https://via.placeholder.com/96"]) + #defaultText {
-    display: none;
-}
+
+/* Modal Styles */
 #actionModal, #editModal, #uploadModal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     z-index: 50;
+    width: 90%;
+    max-width: 500px;
+}
+
+#actionModal.show, #editModal.show, #uploadModal.show {
+    display: block;
+}
+
+#actionModal ul li button:hover, #editModal button:hover, #uploadModal button:hover {
+    opacity: 0.9;
+}
+
+#editModal input, #uploadModal input {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+}
+
+#editModal button, #uploadModal button {
+    padding: 8px 16px;
+    margin-right: 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button.bg-blue-500 {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+
+button.bg-red-500 {
+    background-color: #ef4444;
+    color: #ffffff;
+}
+
+/* Overlay for Modals */
+#overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+}
+
+#overlay.show {
+    display: block;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    #actionModal, #editModal, #uploadModal {
+        width: 95%;
+    }
 }

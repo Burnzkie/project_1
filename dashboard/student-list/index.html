@@ -8,18 +8,34 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="bg-gray-200 flex">
+    <!-- Sidebar -->
+    <div class="fixed w-64 h-full bg-gray-800 text-white p-4 transition-all duration-300" id="sidebar">
+        <h2 class="text-2xl font-bold mb-6">School Admin</h2>
+        <button id="toggleSidebar" class="mb-4 text-gray-400 hover:text-white">☰</button>
+        <ul class="space-y-2">
+            <li><a href="/dashboard/profile" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-profile"><span class="mr-2">👤</span> Profile</a></li>
+            <li><a href="/dashboard/student-list" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-student-list"><span class="mr-2">📋</span> Student List</a></li>
+            <li><a href="/dashboard/payment-plan" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-payment-plan"><span class="mr-2">💰</span> Payment Plan</a></li>
+            <li><a href="/dashboard/tuition-fee" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-tuition-fee"><span class="mr-2">📚</span> Tuition Fee</a></li>
+            <li><a href="/dashboard/payment-method" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-payment-method"><span class="mr-2">💳</span> Payment Method</a></li>
+            <li><a href="/dashboard/request-refund" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-request-refund"><span class="mr-2">↩️</span> Request Refund</a></li>
+            <li><a href="/dashboard/student-payment" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-student-payment"><span class="mr-2">💸</span> Student Payment</a></li>
+            <li><a href="/dashboard/audit-log" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-audit-log"><span class="mr-2">🔍</span> Audit Log</a></li>
+            <li><a href="/dashboard/account-setting" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-account-setting"><span class="mr-2">⚙️</span> Account Setting</a></li>
+            <li><a href="/login/Login.html" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-logout"><span class="mr-2">🚪</span> Logout</a></li>
+        </ul>
+    </div>
     <div class="flex-1 p-6">
         <h1 class="text-2xl font-bold mb-4">Student List</h1>
-        <div class="bg-white p-4 rounded shadow">
-            <button id="addStudent" class="bg-green-500 text-white p-2 rounded mb-4">Add Student</button>
-            <table class="w-full text-left border-collapse">
+        <div class="bg-white p-4 rounded shadow flex justify-between">
+            <table class="w-3/4 text-left border-collapse">
                 <thead>
                     <tr class="bg-gray-100">
-                        <th class="border p-2">Id</th>
+                        <th class="border p-2">ID</th>
                         <th class="border p-2">Name</th>
                         <th class="border p-2">Program</th>
                         <th class="border p-2">Year Level</th>
-                        <th class="border p-2">Date</th>
+                        <th class="border p-2">Date Enrolled</th>
                         <th class="border p-2">Email</th>
                         <th class="border p-2">Contact</th>
                         <th class="border p-2">Action</th>
@@ -27,25 +43,27 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td class="border p-2">Std10251</td>
-                        <td class="border p-2">Shad Burn</td>
+                        <td class="border p-2">001</td>
+                        <td class="border p-2">John Doe</td>
                         <td class="border p-2">BSIT</td>
-                        <td class="border p-2">Second Year</td>
-                        <td class="border p-2">08-30-25</td>
-                        <td class="border p-2">123@gmail.com</td>
-                        <td class="border p-2">09123456789</td>
+                        <td class="border p-2">3</td>
+                        <td class="border p-2">2023-06-01</td>
+                        <td class="border p-2">john.doe@example.com</td>
+                        <td class="border p-2">1234567890</td>
                         <td class="border p-2"><button class="bg-green-500 text-white p-1 rounded">Edit</button> <button class="bg-red-500 text-white p-1 rounded">Delete</button></td>
                     </tr>
                 </tbody>
             </table>
+            <button id="addStudent" class="bg-blue-500 text-white p-2 rounded">Add Student</button>
         </div>
     </div>
     <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
         <div class="bg-white p-4 rounded shadow">
+            <input placeholder="ID" class="border p-2 mb-2 w-full">
             <input placeholder="Name" class="border p-2 mb-2 w-full">
             <input placeholder="Program" class="border p-2 mb-2 w-full">
             <input placeholder="Year Level" class="border p-2 mb-2 w-full">
-            <input placeholder="Date" class="border p-2 mb-2 w-full">
+            <input placeholder="Date Enrolled" class="border p-2 mb-2 w-full">
             <input placeholder="Email" class="border p-2 mb-2 w-full">
             <input placeholder="Contact" class="border p-2 mb-2 w-full">
             <button id="saveStudent" class="bg-blue-500 text-white p-2 rounded">Save</button>

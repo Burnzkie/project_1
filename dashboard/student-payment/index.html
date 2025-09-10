@@ -8,6 +8,23 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="bg-gray-200 flex">
+    <!-- Sidebar -->
+    <div class="fixed w-64 h-full bg-gray-800 text-white p-4 transition-all duration-300" id="sidebar">
+        <h2 class="text-2xl font-bold mb-6">School Admin</h2>
+        <button id="toggleSidebar" class="mb-4 text-gray-400 hover:text-white">☰</button>
+        <ul class="space-y-2">
+            <li><a href="/dashboard/profile" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-profile"><span class="mr-2">👤</span> Profile</a></li>
+            <li><a href="/dashboard/student-list" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-student-list"><span class="mr-2">📋</span> Student List</a></li>
+            <li><a href="/dashboard/payment-plan" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-payment-plan"><span class="mr-2">💰</span> Payment Plan</a></li>
+            <li><a href="/dashboard/tuition-fee" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-tuition-fee"><span class="mr-2">📚</span> Tuition Fee</a></li>
+            <li><a href="/dashboard/payment-method" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-payment-method"><span class="mr-2">💳</span> Payment Method</a></li>
+            <li><a href="/dashboard/request-refund" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-request-refund"><span class="mr-2">↩️</span> Request Refund</a></li>
+            <li><a href="/dashboard/student-payment" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-student-payment"><span class="mr-2">💸</span> Student Payment</a></li>
+            <li><a href="/dashboard/audit-log" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-audit-log"><span class="mr-2">🔍</span> Audit Log</a></li>
+            <li><a href="/dashboard/account-setting" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-account-setting"><span class="mr-2">⚙️</span> Account Setting</a></li>
+            <li><a href="/login/Login.html" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-logout"><span class="mr-2">🚪</span> Logout</a></li>
+        </ul>
+    </div>
     <div class="flex-1 p-6">
         <h1 class="text-2xl font-bold mb-4">Student Payment</h1>
         <div class="bg-white p-4 rounded shadow flex justify-between">
@@ -23,18 +40,15 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td class="border p-2">P20251</td>
-                        <td class="border p-2">John Shadow</td>
-                        <td class="border p-2">₱2,500.00</td>
-                        <td class="border p-2">Tuition</td>
-                        <td class="border p-2"><button class="bg-green-500 text-white p-1 rounded">Edit</button> <button class="bg-red-500 text-white p-1 rounded">Delete</button></td>
+                        <td class="border p-2">001</td>
+                        <td class="border p-2">John Doe</td>
+                        <td class="border p-2">₱10,000.00</td>
+                        <td class="border p-2">Tuition Payment</td>
+                        <td class="border p-2"><button class="bg-green-500 text-white p-1 rounded">Edit</button> <button class="bg-red-500 text-white p-1 rounded">Delete</button> <button class="bg-blue-500 text-white p-1 rounded">Refund</button></td>
                     </tr>
                 </tbody>
             </table>
-            <div>
-                <button id="createPayment" class="bg-green-500 text-white p-2 rounded mb-2">Pay</button>
-                <button id="refundPayment" class="bg-red-500 text-white p-2 rounded">Refund</button>
-            </div>
+            <button id="addPayment" class="bg-blue-500 text-white p-2 rounded">Add Payment</button>
         </div>
     </div>
     <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
