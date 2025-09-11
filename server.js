@@ -7,6 +7,9 @@ const multer = require('multer');
 const cors = require('cors');
 const session = require('express-session');
 const fs = require('fs');
+const crypto = require('crypto');
+const MySQLStore = require('express-mysql-session')(session);
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const port = 3000;
@@ -20,7 +23,7 @@ const db = mysql.createPool({
 });
 
 // Middleware
-app.use(cors()); // Enable CORS for development
+app.use(cors({ origin: 'http://localhost:3000', credentials: true })); // Restricted CORS
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public'))); // Serve public directory
@@ -28,12 +31,21 @@ app.use('/dashboard', express.static(path.join(__dirname, 'dashboard')));
 app.use('/uploads', express.static(path.join(__dirname, 'Uploads')));
 app.use('/login', express.static(path.join(__dirname, 'login')));
 
-// Session middleware
+// Session middleware with MySQL store
+const sessionStore = new MySQLStore({}, db);
 app.use(session({
-    secret: 'your-secret-key', // Replace with a strong secret
+    secret: crypto.randomBytes(32).toString('hex'),
     resave: false,
     saveUninitialized: false,
+    store: sessionStore,
     cookie: { secure: false } // Set to true if using HTTPS
+}));
+
+// Rate limiting for login
+app.use('/login', rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // Limit each IP to 5 requests per window
+    message: 'Too many login attempts, please try again later.'
 }));
 
 // Authentication middleware
@@ -41,8 +53,23 @@ function isAuthenticated(req, res, next) {
     if (req.session.user) {
         return next();
     }
-    res.redirect('/login/Login.html');
+    res.status(401).json({ error: 'Unauthorized' });
 }
+
+// Audit logging middleware
+app.use(async (req, res, next) => {
+    if (req.session.user && ['POST', 'PUT', 'DELETE'].includes(req.method)) {
+        const username = req.session.user.username;
+        const action = req.method;
+        const details = `${req.method} ${req.originalUrl}`;
+        try {
+            await db.query('INSERT INTO audit_logs (action, userName, timestamp, details) VALUES (?, ?, NOW(), ?)', [action, username, details]);
+        } catch (error) {
+            console.error('Error logging action:', error);
+        }
+    }
+    next();
+});
 
 // Create uploads directory
 if (!fs.existsSync('Uploads')) {
@@ -116,6 +143,7 @@ app.get('/api/profile', isAuthenticated, async (req, res) => {
 // API endpoint to update profile
 app.put('/api/profile', isAuthenticated, async (req, res) => {
     const { name, dob } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name is required' });
     const username = req.session.user.username;
     try {
         await db.query('UPDATE user_info SET firstname = ?, dob = ? WHERE username = ?', [name, dob, username]);
@@ -133,11 +161,11 @@ app.post('/api/profile/upload', isAuthenticated, upload.single('profilePic'), as
         return res.status(400).json({ error: 'No file uploaded' });
     }
     const username = req.session.user.username;
-    const profilePicturePath = `/Uploads/${file.filename}`;
+    const profilePicturePath = `/uploads/${file.filename}`; // Changed to /uploads for consistency
     try {
         const [results] = await db.query('SELECT profile_picture FROM user_info WHERE username = ?', [username]);
-        if (results[0].profile_picture) {
-            const oldFilePath = path.join(__dirname, results[0].profile_picture);
+        if (results.length > 0 && results[0].profile_picture) {
+            const oldFilePath = path.join(__dirname, results[0].profile_picture.replace('/uploads/', 'Uploads/'));
             if (fs.existsSync(oldFilePath)) {
                 fs.unlinkSync(oldFilePath);
             }
@@ -167,15 +195,16 @@ app.get('/api/account', isAuthenticated, async (req, res) => {
 
 // API endpoint to update account
 app.put('/api/account', isAuthenticated, async (req, res) => {
-    const { username, email } = req.body;
+    const { username: newUsername, email } = req.body;
+    if (!newUsername || !email) return res.status(400).json({ error: 'Username and email are required' });
     const currentUsername = req.session.user.username;
     try {
-        const [existing] = await db.query('SELECT username FROM user_info WHERE username = ? AND username != ?', [username, currentUsername]);
+        const [existing] = await db.query('SELECT username FROM user_info WHERE username = ? AND username != ?', [newUsername, currentUsername]);
         if (existing.length > 0) {
             return res.status(400).json({ error: 'Username already exists' });
         }
-        await db.query('UPDATE user_info SET username = ?, email = ? WHERE username = ?', [username, email, currentUsername]);
-        req.session.user.username = username;
+        await db.query('UPDATE user_info SET username = ?, email = ? WHERE username = ?', [newUsername, email, currentUsername]);
+        req.session.user.username = newUsername;
         res.json({ message: 'Account updated successfully' });
     } catch (error) {
         console.error('Error updating account:', error);
@@ -188,8 +217,8 @@ app.delete('/api/account', isAuthenticated, async (req, res) => {
     const username = req.session.user.username;
     try {
         const [results] = await db.query('SELECT profile_picture FROM user_info WHERE username = ?', [username]);
-        if (results[0].profile_picture) {
-            const filePath = path.join(__dirname, results[0].profile_picture);
+        if (results.length > 0 && results[0].profile_picture) {
+            const filePath = path.join(__dirname, results[0].profile_picture.replace('/uploads/', 'Uploads/'));
             if (fs.existsSync(filePath)) {
                 fs.unlinkSync(filePath);
             }
@@ -206,7 +235,7 @@ app.delete('/api/account', isAuthenticated, async (req, res) => {
 // API endpoints for audit-log
 app.get('/api/audit-log', isAuthenticated, async (req, res) => {
     const filter = req.query.filter;
-    let query = 'SELECT id, action, userName AS user, timestamp, details FROM audit_logs WHERE 1=1';
+    let query = 'SELECT id, action, userName AS user, timestamp, details FROM audit_logs WHERE isArchived = false';
     const params = [];
     if (filter) {
         query += ' AND (action LIKE ? OR userName LIKE ?)';
@@ -224,7 +253,7 @@ app.get('/api/audit-log', isAuthenticated, async (req, res) => {
 app.get('/api/audit-log/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     try {
-        const [results] = await db.query('SELECT id, action, userName AS user, details FROM audit_logs WHERE id = ?', [id]);
+        const [results] = await db.query('SELECT id, action, userName AS user, details FROM audit_logs WHERE id = ? AND isArchived = false', [id]);
         if (results.length === 0) {
             return res.status(404).json({ error: 'Log not found' });
         }
@@ -238,6 +267,7 @@ app.get('/api/audit-log/:id', isAuthenticated, async (req, res) => {
 app.put('/api/audit-log/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     const { action, user, details } = req.body;
+    if (!action || !user) return res.status(400).json({ error: 'Action and user are required' });
     try {
         await db.query('UPDATE audit_logs SET action = ?, userName = ?, details = ? WHERE id = ?', [action, user, details, id]);
         res.json({ message: 'Log updated' });
@@ -250,7 +280,7 @@ app.put('/api/audit-log/:id', isAuthenticated, async (req, res) => {
 app.delete('/api/audit-log/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     try {
-        await db.query('DELETE FROM audit_logs WHERE id = ?', [id]);
+        await db.query('UPDATE audit_logs SET isArchived = true WHERE id = ?', [id]);
         res.json({ message: 'Log archived' });
     } catch (error) {
         console.error('Error archiving audit log:', error);
@@ -271,8 +301,9 @@ app.get('/api/payment-method', isAuthenticated, async (req, res) => {
 
 app.post('/api/payment-method', isAuthenticated, async (req, res) => {
     const { name, description } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name is required' });
     try {
-        await db.query('INSERT INTO payment_methods (name, description) VALUES (?, ?)', [name, description]);
+        await db.query('INSERT INTO payment_methods (name, description) VALUES (?, ?)', [name, description || '']);
         res.json({ message: 'Payment method added' });
     } catch (error) {
         console.error('Error adding payment method:', error);
@@ -297,8 +328,9 @@ app.get('/api/payment-method/:id', isAuthenticated, async (req, res) => {
 app.put('/api/payment-method/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     const { name, description } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name is required' });
     try {
-        await db.query('UPDATE payment_methods SET name = ?, description = ? WHERE id = ?', [name, description, id]);
+        await db.query('UPDATE payment_methods SET name = ?, description = ? WHERE id = ?', [name, description || '', id]);
         res.json({ message: 'Payment method updated' });
     } catch (error) {
         console.error('Error updating payment method:', error);
@@ -318,6 +350,7 @@ app.delete('/api/payment-method/:id', isAuthenticated, async (req, res) => {
 });
 
 // API endpoints for payment-plan
+
 app.get('/api/payment-plan', isAuthenticated, async (req, res) => {
     try {
         const [results] = await db.query('SELECT id, name, amount, schedule FROM payment_plans');
@@ -330,6 +363,7 @@ app.get('/api/payment-plan', isAuthenticated, async (req, res) => {
 
 app.post('/api/payment-plan', isAuthenticated, async (req, res) => {
     const { name, amount, schedule } = req.body;
+    if (!name || !amount || !schedule) return res.status(400).json({ error: 'Name, amount, and schedule are required' });
     try {
         await db.query('INSERT INTO payment_plans (name, amount, schedule) VALUES (?, ?, ?)', [name, amount, schedule]);
         res.json({ message: 'Payment plan added' });
@@ -356,6 +390,7 @@ app.get('/api/payment-plan/:id', isAuthenticated, async (req, res) => {
 app.put('/api/payment-plan/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     const { name, amount, schedule } = req.body;
+    if (!name || !amount || !schedule) return res.status(400).json({ error: 'Name, amount, and schedule are required' });
     try {
         await db.query('UPDATE payment_plans SET name = ?, amount = ?, schedule = ? WHERE id = ?', [name, amount, schedule, id]);
         res.json({ message: 'Payment plan updated' });
@@ -376,8 +411,8 @@ app.delete('/api/payment-plan/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-// API endpoints for request-refund
-app.get('/api/request-refund', isAuthenticated, async (req, res) => {
+// API endpoints for refund-request (updated endpoint)
+app.get('/api/refund-request', isAuthenticated, async (req, res) => {
     try {
         const [results] = await db.query('SELECT id, paymentId, amount, description, status FROM refunds');
         res.json(results);
@@ -387,10 +422,11 @@ app.get('/api/request-refund', isAuthenticated, async (req, res) => {
     }
 });
 
-app.post('/api/request-refund', isAuthenticated, async (req, res) => {
+app.post('/api/refund-request', isAuthenticated, async (req, res) => {
     const { paymentId, amount, description, status } = req.body;
+    if (!paymentId || !amount) return res.status(400).json({ error: 'Payment ID and amount are required' });
     try {
-        await db.query('INSERT INTO refunds (paymentId, amount, description, status) VALUES (?, ?, ?, ?)', [paymentId, amount, description, status || 'Pending']);
+        await db.query('INSERT INTO refunds (paymentId, amount, description, status) VALUES (?, ?, ?, ?)', [paymentId, amount, description || '', status || 'Pending']);
         res.json({ message: 'Refund requested' });
     } catch (error) {
         console.error('Error adding refund:', error);
@@ -398,7 +434,7 @@ app.post('/api/request-refund', isAuthenticated, async (req, res) => {
     }
 });
 
-app.get('/api/request-refund/:id', isAuthenticated, async (req, res) => {
+app.get('/api/refund-request/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     try {
         const [results] = await db.query('SELECT id, paymentId, amount, description, status FROM refunds WHERE id = ?', [id]);
@@ -412,11 +448,12 @@ app.get('/api/request-refund/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-app.put('/api/request-refund/:id', isAuthenticated, async (req, res) => {
+app.put('/api/refund-request/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     const { paymentId, amount, description, status } = req.body;
+    if (!paymentId || !amount) return res.status(400).json({ error: 'Payment ID and amount are required' });
     try {
-        await db.query('UPDATE refunds SET paymentId = ?, amount = ?, description = ?, status = ? WHERE id = ?', [paymentId, amount, description, status, id]);
+        await db.query('UPDATE refunds SET paymentId = ?, amount = ?, description = ?, status = ? WHERE id = ?', [paymentId, amount, description || '', status, id]);
         res.json({ message: 'Refund updated' });
     } catch (error) {
         console.error('Error updating refund:', error);
@@ -424,7 +461,7 @@ app.put('/api/request-refund/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-app.delete('/api/request-refund/:id', isAuthenticated, async (req, res) => {
+app.delete('/api/refund-request/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     try {
         await db.query('DELETE FROM refunds WHERE id = ?', [id]);
@@ -435,8 +472,8 @@ app.delete('/api/request-refund/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-// API endpoints for student-list
-app.get('/api/student-list', isAuthenticated, async (req, res) => {
+// API endpoints for student (updated endpoint)
+app.get('/api/student', isAuthenticated, async (req, res) => {
     try {
         const [results] = await db.query('SELECT id, name, program, year_level, date, email, contact FROM students');
         res.json(results);
@@ -446,8 +483,9 @@ app.get('/api/student-list', isAuthenticated, async (req, res) => {
     }
 });
 
-app.post('/api/student-list', isAuthenticated, async (req, res) => {
+app.post('/api/student', isAuthenticated, async (req, res) => {
     const { name, program, year_level, date, email, contact } = req.body;
+    if (!name || !program || !year_level || !date || !email || !contact) return res.status(400).json({ error: 'All fields are required' });
     try {
         const [result] = await db.query('INSERT INTO students (name, program, year_level, date, email, contact) VALUES (?, ?, ?, ?, ?, ?)', [name, program, year_level, date, email, contact]);
         res.json({ message: 'Student added', id: result.insertId });
@@ -457,7 +495,7 @@ app.post('/api/student-list', isAuthenticated, async (req, res) => {
     }
 });
 
-app.get('/api/student-list/:id', isAuthenticated, async (req, res) => {
+app.get('/api/student/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     try {
         const [results] = await db.query('SELECT id, name, program, year_level, date, email, contact FROM students WHERE id = ?', [id]);
@@ -471,9 +509,10 @@ app.get('/api/student-list/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-app.put('/api/student-list/:id', isAuthenticated, async (req, res) => {
+app.put('/api/student/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     const { name, program, year_level, date, email, contact } = req.body;
+    if (!name || !program || !year_level || !date || !email || !contact) return res.status(400).json({ error: 'All fields are required' });
     try {
         await db.query('UPDATE students SET name = ?, program = ?, year_level = ?, date = ?, email = ?, contact = ? WHERE id = ?', [name, program, year_level, date, email, contact, id]);
         res.json({ message: 'Student updated' });
@@ -483,7 +522,7 @@ app.put('/api/student-list/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-app.delete('/api/student-list/:id', isAuthenticated, async (req, res) => {
+app.delete('/api/student/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     try {
         await db.query('DELETE FROM students WHERE id = ?', [id]);
@@ -507,8 +546,9 @@ app.get('/api/student-payment', isAuthenticated, async (req, res) => {
 
 app.post('/api/student-payment', isAuthenticated, async (req, res) => {
     const { studentId, studentName, amount, description } = req.body;
+    if (!studentId || !studentName || !amount) return res.status(400).json({ error: 'Student ID, name, and amount are required' });
     try {
-        const [result] = await db.query('INSERT INTO student_payments (studentId, studentName, amount, description) VALUES (?, ?, ?, ?)', [studentId, studentName, amount, description]);
+        const [result] = await db.query('INSERT INTO student_payments (studentId, studentName, amount, description) VALUES (?, ?, ?, ?)', [studentId, studentName, amount, description || '']);
         res.json({ message: 'Payment added', id: result.insertId });
     } catch (error) {
         console.error('Error adding student payment:', error);
@@ -533,8 +573,9 @@ app.get('/api/student-payment/:id', isAuthenticated, async (req, res) => {
 app.put('/api/student-payment/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     const { studentId, studentName, amount, description } = req.body;
+    if (!studentId || !studentName || !amount) return res.status(400).json({ error: 'Student ID, name, and amount are required' });
     try {
-        await db.query('UPDATE student_payments SET studentId = ?, studentName = ?, amount = ?, description = ? WHERE id = ?', [studentId, studentName, amount, description, id]);
+        await db.query('UPDATE student_payments SET studentId = ?, studentName = ?, amount = ?, description = ? WHERE id = ?', [studentId, studentName, amount, description || '', id]);
         res.json({ message: 'Payment updated' });
     } catch (error) {
         console.error('Error updating student payment:', error);
@@ -555,8 +596,9 @@ app.delete('/api/student-payment/:id', isAuthenticated, async (req, res) => {
 
 app.post('/api/student-payment/refund', isAuthenticated, async (req, res) => {
     const { studentId, studentName, amount, description } = req.body;
+    if (!studentId || !amount) return res.status(400).json({ error: 'Student ID and amount are required' });
     try {
-        await db.query('INSERT INTO refunds (paymentId, amount, description, status) VALUES (?, ?, ?, ?)', [studentId, amount, description, 'Pending']);
+        await db.query('INSERT INTO refunds (paymentId, amount, description, status) VALUES (?, ?, ?, ?)', [studentId, amount, description || '', 'Pending']);
         res.json({ message: 'Refund requested' });
     } catch (error) {
         console.error('Error requesting refund:', error);
@@ -577,6 +619,7 @@ app.get('/api/tuition-fee', isAuthenticated, async (req, res) => {
 
 app.post('/api/tuition-fee', isAuthenticated, async (req, res) => {
     const { type, amount } = req.body;
+    if (!type || !amount) return res.status(400).json({ error: 'Type and amount are required' });
     try {
         await db.query('INSERT INTO tuition_fees (type, amount) VALUES (?, ?)', [type, amount]);
         res.json({ message: 'Tuition fee added' });
@@ -586,7 +629,7 @@ app.post('/api/tuition-fee', isAuthenticated, async (req, res) => {
     }
 });
 
-app.get('/api/tuition-fee/:id', isAuthenticated, async (req, st) => {
+app.get('/api/tuition-fee/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     try {
         const [results] = await db.query('SELECT id, type, amount FROM tuition_fees WHERE id = ?', [id]);
@@ -603,6 +646,7 @@ app.get('/api/tuition-fee/:id', isAuthenticated, async (req, st) => {
 app.put('/api/tuition-fee/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     const { type, amount } = req.body;
+    if (!type || !amount) return res.status(400).json({ error: 'Type and amount are required' });
     try {
         await db.query('UPDATE tuition_fees SET type = ?, amount = ? WHERE id = ?', [type, amount, id]);
         res.json({ message: 'Tuition fee updated' });
@@ -665,7 +709,7 @@ app.post('/signup', async (req, res) => {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         await db.query(query, [firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, hashedPassword, role]);
-        res.redirect('/login/Login.html');
+        res.json({ redirect: '/login/Login.html' });
     } catch (error) {
         console.error('Error during signup:', error);
         if (error.code === 'ER_DUP_ENTRY') {
@@ -695,7 +739,7 @@ app.post('/login', async (req, res) => {
         const match = await bcrypt.compare(password, user.password);
         if (match) {
             req.session.user = { username: user.username };
-            res.redirect(`/dashboard?username=${username}`);
+            res.json({ redirect: `/dashboard?username=${username}` });
         } else {
             res.status(401).json({ error: 'Invalid username or password.' });
         }
@@ -718,7 +762,7 @@ app.get('/logout', (req, res) => {
             console.error('Error during logout:', err);
             return res.status(500).json({ error: 'Logout failed' });
         }
-        res.redirect('/login/Login.html');
+        res.json({ redirect: '/login/Login.html' });
     });
 });
 
