@@ -1,9 +1,9 @@
-// Utility function for API requests
 async function apiRequest(url, method, data = null) {
     try {
         const options = {
             method,
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
         };
         if (data) {
             options.body = JSON.stringify(data);
@@ -19,170 +19,144 @@ async function apiRequest(url, method, data = null) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const modal = document.getElementById('modal');
     const addPaymentBtn = document.getElementById('addPayment');
-    const savePaymentBtn = document.getElementById('savePayment');
-    const closeModalBtn = document.getElementById('closeModal');
-    const tableBody = document.querySelector('tbody');
+    const paymentTable = document.getElementById('paymentTable');
+    const modal = document.getElementById('modal');
 
-    // Create Payment
-    async function createPayment() {
-        const inputs = modal.querySelectorAll('input');
-        const payment = {
-            studentId: inputs[0].value,
-            studentName: inputs[1].value,
-            amount: inputs[2].value,
-            description: inputs[3].value
-        };
-        if (!payment.studentId || !payment.amount) {
-            alert('Student ID and Amount are required.');
-            return;
-        }
-        try {
-            await apiRequest('/api/student-payments', 'POST', payment);
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td class="border p-2">${payment.studentId}</td>
-                <td class="border p-2">${payment.studentName}</td>
-                <td class="border p-2">${payment.amount}</td>
-                <td class="border p-2">${payment.description}</td>
-                <td class="border p-2">
-                    <button class="bg-green-500 text-white p-1 rounded edit-payment">Edit</button>
-                    <button class="bg-red-500 text-white p-1 rounded delete-payment">Delete</button>
-                    <button class="bg-blue-500 text-white p-1 rounded refund-payment">Refund</button>
-                </td>`;
-            tableBody.appendChild(row);
-            modal.classList.add('hidden');
-            inputs.forEach(input => input.value = '');
-        } catch (error) {
-            // Error handled in apiRequest
-        }
-    }
-
-    // Read Payments
+    // Fetch and display student payments
     async function readPayments() {
         try {
-            const payments = await apiRequest('/api/student-payments', 'GET');
-            tableBody.innerHTML = '';
-            payments.forEach(payment => {
+            const data = await apiRequest('/api/student-payment', 'GET');
+            paymentTable.innerHTML = '';
+            data.forEach(payment => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td class="border p-2">${payment.studentId}</td>
-                    <td class="border p-2">${payment.studentName}</td>
-                    <td class="border p-2">${payment.amount}</td>
-                    <td class="border p-2">${payment.description}</td>
+                    <td class="border p-2">${payment.studentId || 'N/A'}</td>
+                    <td class="border p-2">${payment.studentName || 'N/A'}</td>
+                    <td class="border p-2">$${parseFloat(payment.amount).toFixed(2)}</td>
+                    <td class="border p-2">${payment.description || 'N/A'}</td>
                     <td class="border p-2">
-                        <button class="bg-green-500 text-white p-1 rounded edit-payment">Edit</button>
-                        <button class="bg-red-500 text-white p-1 rounded delete-payment">Delete</button>
-                        <button class="bg-blue-500 text-white p-1 rounded refund-payment">Refund</button>
-                    </td>`;
-                tableBody.appendChild(row);
+                        <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${payment.id}">Edit</button>
+                        <button class="delete-btn bg-red-500 text-white p-1 rounded mr-2" data-id="${payment.id}">Delete</button>
+                        <button class="refund-btn bg-yellow-500 text-white p-1 rounded" data-id="${payment.id}">Refund</button>
+                    </td>
+                `;
+                paymentTable.appendChild(row);
             });
-        } catch (error) {
-            tableBody.innerHTML = '<tr><td colspan="5">Error loading payments.</td></tr>';
+
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', () => editPayment(btn.dataset.id));
+            });
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', () => deletePayment(btn.dataset.id));
+            });
+            document.querySelectorAll('.refund-btn').forEach(btn => {
+                btn.addEventListener('click', () => requestRefund(btn.dataset.id));
+            });
+        } catch (error) {}
+    }
+
+    // Add or edit payment
+    async function savePayment() {
+        const id = document.getElementById('paymentId').value;
+        const studentId = document.getElementById('studentId').value.trim();
+        const studentName = document.getElementById('studentName').value.trim();
+        const amount = parseFloat(document.getElementById('amount').value);
+        const description = document.getElementById('description').value.trim();
+        if (studentId && studentName && !isNaN(amount) && amount > 0) {
+            try {
+                const method = id ? 'PUT' : 'POST';
+                const url = id ? `/api/student-payment/${id}` : '/api/student-payment';
+                await apiRequest(url, method, { studentId, studentName, amount, description });
+                readPayments();
+                modal.classList.add('hidden');
+                alert(id ? 'Payment updated!' : 'Payment added!');
+            } catch (error) {}
+        } else {
+            alert('Please fill in all required fields with valid data.');
         }
     }
 
-    // Update Payment
-    async function updatePayment(event) {
-        const row = event.target.closest('tr');
-        const studentId = row.cells[0].textContent;
-        modal.classList.remove('hidden');
-        const inputs = modal.querySelectorAll('input');
-        inputs[0].value = row.cells[0].textContent;
-        inputs[1].value = row.cells[1].textContent;
-        inputs[2].value = row.cells[2].textContent;
-        inputs[3].value = row.cells[3].textContent;
-        savePaymentBtn.onclick = async () => {
-            const payment = {
-                studentId: inputs[0].value,
-                studentName: inputs[1].value,
-                amount: inputs[2].value,
-                description: inputs[3].value
-            };
-            if (!payment.studentId || !payment.amount) {
-                alert('Student ID and Amount are required.');
-                return;
-            }
-            try {
-                await apiRequest(`/api/student-payments/${studentId}`, 'PUT', payment);
-                row.cells[0].textContent = payment.studentId;
-                row.cells[1].textContent = payment.studentName;
-                row.cells[2].textContent = payment.amount;
-                row.cells[3].textContent = payment.description;
-                modal.classList.add('hidden');
-                inputs.forEach(input => input.value = '');
-            } catch (error) {
-                // Error handled in apiRequest
-            }
-        };
+    // Edit payment
+    async function editPayment(id) {
+        try {
+            const data = await apiRequest(`/api/student-payment/${id}`, 'GET');
+            showModal('Edit Payment', `
+                <input type="hidden" id="paymentId" value="${data.id}">
+                <input type="text" id="studentId" value="${data.studentId || ''}" placeholder="Student ID" class="border p-2 w-full mb-2">
+                <input type="text" id="studentName" value="${data.studentName || ''}" placeholder="Student Name" class="border p-2 w-full mb-2">
+                <input type="number" id="amount" value="${data.amount || ''}" placeholder="Amount" step="0.01" class="border p-2 w-full mb-2">
+                <textarea id="description" placeholder="Description" class="border p-2 w-full">${data.description || ''}</textarea>
+            `, 'Update', savePayment);
+        } catch (error) {}
     }
 
-    // Delete Payment
-    async function deletePayment(event) {
-        const row = event.target.closest('tr');
-        const studentId = row.cells[0].textContent;
+    // Delete payment
+    async function deletePayment(id) {
         if (confirm('Are you sure you want to delete this payment?')) {
             try {
-                await apiRequest(`/api/student-payments/${studentId}`, 'DELETE');
-                row.remove();
-            } catch (error) {
-                // Error handled in apiRequest
-            }
+                await apiRequest(`/api/student-payment/${id}`, 'DELETE');
+                readPayments();
+                alert('Payment deleted!');
+            } catch (error) {}
         }
     }
 
-    // Request Refund
-    async function requestRefund(event) {
-        const row = event.target.closest('tr');
-        const studentId = row.cells[0].textContent;
-        const studentName = row.cells[1].textContent;
-        const amount = row.cells[2].textContent;
-        const description = row.cells[3].textContent;
-        if (confirm('Are you sure you want to request a refund for this payment?')) {
-            try {
-                await apiRequest('/api/student-payments/refund', 'POST', { studentId, studentName, amount, description });
-                alert('Refund requested successfully!');
-            } catch (error) {
-                // Error handled in apiRequest
-            }
-        }
+    // Request refund
+    async function requestRefund(id) {
+        try {
+            const data = await apiRequest(`/api/student-payment/${id}`, 'GET');
+            const { studentId, studentName, amount, description } = data;
+            await apiRequest('/api/student-payment/refund', 'POST', { studentId, studentName, amount, description });
+            alert('Refund requested!');
+        } catch (error) {}
     }
 
-    // Event Listeners
-    addPaymentBtn?.addEventListener('click', () => {
+    // Show Modal
+    function showModal(title, content, buttonText, action) {
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalContent').innerHTML = content;
+        document.getElementById('modalAction').textContent = buttonText;
+        document.getElementById('modalAction').onclick = action;
         modal.classList.remove('hidden');
-        savePaymentBtn.onclick = createPayment;
+    }
+
+    // Close Modal
+    document.querySelector('.close').addEventListener('click', () => modal.classList.add('hidden'));
+
+    // Add payment button
+    addPaymentBtn.addEventListener('click', () => {
+        showModal('Add Payment', `
+            <input type="hidden" id="paymentId" value="">
+            <input type="text" id="studentId" placeholder="Student ID" class="border p-2 w-full mb-2">
+            <input type="text" id="studentName" placeholder="Student Name" class="border p-2 w-full mb-2">
+            <input type="number" id="amount" placeholder="Amount" step="0.01" class="border p-2 w-full mb-2">
+            <textarea id="description" placeholder="Description" class="border p-2 w-full"></textarea>
+        `, 'Add', savePayment);
     });
-    closeModalBtn?.addEventListener('click', () => {
-        modal.classList.add('hidden');
-        modal.querySelectorAll('input').forEach(input => input.value = '');
+
+    // Sidebar toggle
+    document.getElementById('toggleSidebar').addEventListener('click', () => {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('collapsed');
+        const mainContent = document.getElementById('mainContent');
+        mainContent.classList.toggle('ml-64');
+        mainContent.classList.toggle('ml-20');
     });
-    tableBody?.addEventListener('click', (e) => {
-        if (e.target.classList.contains('edit-payment')) updatePayment(e);
-        if (e.target.classList.contains('delete-payment')) deletePayment(e);
-        if (e.target.classList.contains('refund-payment')) requestRefund(e);
+
+    // Highlight active page
+    const navLinks = document.querySelectorAll('ul a');
+    const currentPage = window.location.pathname.split('/').pop() || 'student-payment';
+    navLinks.forEach(link => {
+        if (link.getAttribute('href').includes(currentPage)) {
+            link.classList.add('bg-gray-700');
+        }
+        link.addEventListener('click', () => {
+            navLinks.forEach(l => l.classList.remove('bg-gray-700'));
+            link.classList.add('bg-gray-700');
+        });
     });
 
     // Initialize
     readPayments();
-});
-
-// Sidebar toggle
-document.getElementById('toggleSidebar').addEventListener('click', () => {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.toggle('collapsed');
-});
-
-// Highlight active page
-const navLinks = document.querySelectorAll('ul a');
-const currentPage = window.location.pathname.split('/').pop();
-navLinks.forEach(link => {
-    if (link.getAttribute('href').includes(currentPage)) {
-        link.classList.add('bg-gray-700');
-    }
-    link.addEventListener('click', () => {
-        navLinks.forEach(l => l.classList.remove('bg-gray-700'));
-        link.classList.add('bg-gray-700');
-    });
 });

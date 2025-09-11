@@ -10,50 +10,98 @@ body {
 
 /* Sidebar Styles */
 #sidebar {
+    position: fixed;
+    width: 256px;
+    height: 100%;
+    background-color: #4a5568;
+    color: #ffffff;
+    padding: 16px;
     z-index: 10;
+    transition: width 0.3s ease;
 }
+
 #sidebar.collapsed {
     width: 80px;
 }
-#sidebar.collapsed ul a span:first-child {
-    margin-right: 0;
+
+#sidebar.collapsed h2,
+#sidebar.collapsed ul li a span:not(.mr-2) {
+    display: none;
 }
-#sidebar.collapsed ul a {
-    text-align: center;
-    padding: 10px;
+
+#sidebar h2 {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+}
+
+#sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#sidebar ul li a {
+    display: block;
+    padding: 0.5rem;
+    color: #ffffff;
+    text-decoration: none;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+}
+
+#sidebar ul li a:hover {
+    background-color: #718096;
+}
+
+#sidebar ul li a span {
+    margin-right: 0.5rem;
+}
+
+/* Main Content */
+#mainContent {
+    margin-left: 256px;
+    padding: 1.5rem;
+    transition: margin-left 0.3s ease;
+}
+
+#sidebar.collapsed ~ #mainContent {
+    margin-left: 80px;
+}
+
+/* Box Class */
+.box {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Container Styles */
+#tuitionFeeContainer, #profileContainer {
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    margin-bottom: 20px;
 }
 
 /* Table Styles */
 table {
     width: 100%;
     border-collapse: collapse;
-    background-color: #ffffff;
-    border: 1px solid #e5e7eb;
-    margin-bottom: 20px;
 }
 
 th, td {
-    padding: 12px;
+    border: 1px solid #d1d5db;
+    padding: 8px;
     text-align: left;
-    border: 1px solid #e5e7eb;
 }
 
 th {
-    background-color: #f9fafb;
-    font-weight: 600;
-}
-
-tr:nth-child(even) {
     background-color: #f3f4f6;
 }
 
-tr:hover {
-    background-color: #e5e7eb;
-    transition: background-color 0.2s;
-}
-
 /* Modal Styles */
-#modal {
+#tuitionFeeModal, #actionModal, #editModal, #uploadModal, #viewImageModal {
     display: none;
     position: fixed;
     top: 50%;
@@ -68,24 +116,11 @@ tr:hover {
     max-width: 500px;
 }
 
-#modal.show {
-    display: block;
+#tuitionFeeModal:not(.hidden), #actionModal:not(.hidden), #editModal:not(.hidden), #uploadModal:not(.hidden), #viewImageModal:not(.hidden) {
+    display: flex;
 }
 
-#modal .close {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    cursor: pointer;
-    font-size: 18px;
-    color: #6b7280;
-}
-
-#modal .close:hover {
-    color: #1f2937;
-}
-
-#modal input {
+#tuitionFeeModal input, #tuitionFeeModal textarea, #editModal input, #editModal select, #uploadModal input {
     width: 100%;
     padding: 8px;
     margin-bottom: 10px;
@@ -93,7 +128,16 @@ tr:hover {
     border-radius: 4px;
 }
 
-#modal button {
+#tuitionFeeModal textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+#tuitionFeeModal button, #actionModal ul li button:hover, #editModal button:hover, #uploadModal button:hover {
+    opacity: 0.9;
+}
+
+#tuitionFeeModal button, #editModal button, #uploadModal button {
     padding: 8px 16px;
     margin-right: 10px;
     border: none;
@@ -101,12 +145,8 @@ tr:hover {
     cursor: pointer;
 }
 
-#modal button:hover {
-    opacity: 0.9;
-}
-
-button.bg-green-500 {
-    background-color: #10b981;
+button.bg-blue-500 {
+    background-color: #3b82f6;
     color: #ffffff;
 }
 
@@ -115,34 +155,18 @@ button.bg-red-500 {
     color: #ffffff;
 }
 
-button.bg-blue-500 {
-    background-color: #3b82f6;
-    color: #ffffff;
-}
-
-/* Overlay for Modals */
-#overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 40;
-}
-
-#overlay.show {
-    display: block;
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
-    table {
-        overflow-x: auto;
-        display: block;
+    #sidebar {
+        width: 80px;
     }
-    #modal {
+    #mainContent {
+        margin-left: 80px;
+    }
+    #tuitionFeeModal, #actionModal, #editModal, #uploadModal, #viewImageModal {
         width: 95%;
+    }
+    table {
+        font-size: 0.9rem;
     }
 }

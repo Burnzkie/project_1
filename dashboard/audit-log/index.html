@@ -7,11 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-gray-200 flex">
+<body class="flex min-h-screen bg-gray-100">
     <!-- Sidebar -->
     <div class="fixed w-64 h-full bg-gray-800 text-white p-4 transition-all duration-300" id="sidebar">
+        <button id="toggleSidebar" class="p-2 bg-gray-700 text-white rounded mb-4">Toggle Sidebar</button>
         <h2 class="text-2xl font-bold mb-6">School Admin</h2>
-        <button id="toggleSidebar" class="mb-4 text-gray-400 hover:text-white">☰</button>
         <ul class="space-y-2">
             <li><a href="/dashboard/profile" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-profile"><span class="mr-2">👤</span> Profile</a></li>
             <li><a href="/dashboard/student-list" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-student-list"><span class="mr-2">📋</span> Student List</a></li>
@@ -25,48 +25,37 @@
             <li><a href="/login/Login.html" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-logout"><span class="mr-2">🚪</span> Logout</a></li>
         </ul>
     </div>
-    <div class="flex-1 p-6">
+    <div class="flex-1 ml-64 p-6" id="mainContent">
         <h1 class="text-2xl font-bold mb-4">Audit Log</h1>
         <div class="bg-white p-4 rounded shadow">
-            <button id="searchLogs" class="bg-purple-500 text-white p-2 rounded mb-4">Search Logs</button>
-            <table class="w-full text-left border-collapse">
+            <div class="mb-4">
+                <input id="filterInput" type="text" placeholder="Filter by action or user" class="border p-2 w-full">
+            </div>
+            <table class="w-full border-collapse">
                 <thead>
                     <tr class="bg-gray-100">
-                        <th class="border p-2">Log ID</th>
-                        <th class="border p-2">User Role</th>
-                        <th class="border p-2">User Name</th>
-                        <th class="border p-2">Action</th>
-                        <th class="border p-2">Timestamp</th>
-                        <th class="border p-2">Details</th>
-                        <th class="border p-2">Status</th>
-                        <th class="border p-2">Action</th>
+                        <th class="border p-2 text-left">Action</th>
+                        <th class="border p-2 text-left">User</th>
+                        <th class="border p-2 text-left">Timestamp</th>
+                        <th class="border p-2 text-left">Details</th>
+                        <th class="border p-2 text-left">Actions</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <tr>
-                        <td class="border p-2">001</td>
-                        <td class="border p-2">Admin</td>
-                        <td class="border p-2">Admin1</td>
-                        <td class="border p-2">Create</td>
-                        <td class="border p-2">09-03-25 09:00 PM PST</td>
-                        <td class="border p-2">Added student Std10251</td>
-                        <td class="border p-2">Active</td>
-                        <td class="border p-2"><button class="bg-green-500 text-white p-1 rounded">View</button> <button class="bg-red-500 text-white p-1 rounded">Archive</button></td>
-                    </tr>
-                    <!-- Add more rows as needed -->
-                </tbody>
+                <tbody id="auditLogTable"></tbody>
             </table>
         </div>
     </div>
+
+    <!-- Modal -->
     <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-        <div class="bg-white p-4 rounded shadow">
-            <input placeholder="User" class="border p-2 mb-2 w-full">
-            <input placeholder="Action" class="border p-2 mb-2 w-full">
-            <input placeholder="Date" class="border p-2 mb-2 w-full">
-            <button id="filterLogs" class="bg-blue-500 text-white p-2 rounded">Filter</button>
-            <button id="closeModal" class="bg-red-500 text-white p-2 rounded ml-2">Close</button>
+        <div class="bg-white p-4 rounded shadow w-96">
+            <span class="close text-gray-500 float-right cursor-pointer">&times;</span>
+            <h3 class="text-lg font-semibold mb-2" id="modalTitle"></h3>
+            <div id="modalContent"></div>
+            <button id="modalAction" class="bg-green-500 text-white p-2 rounded mt-4"></button>
         </div>
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>

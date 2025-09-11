@@ -1,9 +1,9 @@
-// Utility function for API requests
 async function apiRequest(url, method, data = null) {
     try {
         const options = {
             method,
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
         };
         if (data) {
             options.body = JSON.stringify(data);
@@ -19,151 +19,111 @@ async function apiRequest(url, method, data = null) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const auditLogTable = document.getElementById('auditLogTable');
+    const filterInput = document.getElementById('filterInput');
     const modal = document.getElementById('modal');
-    const searchLogsBtn = document.getElementById('searchLogs');
-    const filterLogsBtn = document.getElementById('filterLogs');
-    const closeModalBtn = document.getElementById('closeModal');
-    const tableBody = document.querySelector('tbody');
 
-    // Read Audit Logs
-    async function readAuditLogs() {
+    // Fetch and display audit logs
+    async function readAuditLogs(filter = '') {
         try {
-            const logs = await apiRequest('/api/audit-logs', 'GET');
-            tableBody.innerHTML = '';
-            logs.forEach(log => {
+            const data = await apiRequest(`/api/audit-log${filter ? `?filter=${encodeURIComponent(filter)}` : ''}`, 'GET');
+            auditLogTable.innerHTML = '';
+            data.forEach(log => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td class="border p-2">${log.id}</td>
-                    <td class="border p-2">${log.userRole}</td>
-                    <td class="border p-2">${log.userName}</td>
-                    <td class="border p-2">${log.action}</td>
-                    <td class="border p-2">${log.timestamp}</td>
-                    <td class="border p-2">${log.details}</td>
-                    <td class="border p-2">${log.status}</td>
+                    <td class="border p-2">${log.action || 'N/A'}</td>
+                    <td class="border p-2">${log.user || 'N/A'}</td>
+                    <td class="border p-2">${new Date(log.timestamp).toLocaleString()}</td>
+                    <td class="border p-2">${log.details || 'N/A'}</td>
                     <td class="border p-2">
-                        <button class="bg-green-500 text-white p-1 rounded edit-log">Edit</button>
-                        <button class="bg-red-500 text-white p-1 rounded archive-log">Archive</button>
-                    </td>`;
-                tableBody.appendChild(row);
+                        <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${log.id}">Edit</button>
+                        <button class="delete-btn bg-red-500 text-white p-1 rounded" data-id="${log.id}">Archive</button>
+                    </td>
+                `;
+                auditLogTable.appendChild(row);
             });
-        } catch (error) {
-            tableBody.innerHTML = '<tr><td colspan="8">Error loading audit logs.</td></tr>';
-        }
+
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', () => editAuditLog(btn.dataset.id));
+            });
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', () => deleteAuditLog(btn.dataset.id));
+            });
+        } catch (error) {}
     }
 
-    // Filter Audit Logs
-    async function filterAuditLogs() {
-        const inputs = modal.querySelectorAll('input');
-        const filters = {
-            user: inputs[0].value,
-            action: inputs[1].value,
-            date: inputs[2].value
-        };
+    // Edit audit log
+    async function editAuditLog(id) {
         try {
-            const logs = await apiRequest('/api/audit-logs/filter', 'POST', filters);
-            tableBody.innerHTML = '';
-            logs.forEach(log => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="border p-2">${log.id}</td>
-                    <td class="border p-2">${log.userRole}</td>
-                    <td class="border p-2">${log.userName}</td>
-                    <td class="border p-2">${log.action}</td>
-                    <td class="border p-2">${log.timestamp}</td>
-                    <td class="border p-2">${log.details}</td>
-                    <td class="border p-2">${log.status}</td>
-                    <td class="border p-2">
-                        <button class="bg-green-500 text-white p-1 rounded edit-log">Edit</button>
-                        <button class="bg-red-500 text-white p-1 rounded archive-log">Archive</button>
-                    </td>`;
-                tableBody.appendChild(row);
+            const data = await apiRequest(`/api/audit-log/${id}`, 'GET');
+            showModal('Edit Audit Log', `
+                <input type="hidden" id="logId" value="${data.id}">
+                <input type="text" id="logAction" value="${data.action || ''}" placeholder="Action" class="border p-2 w-full mb-2">
+                <input type="text" id="logUser" value="${data.user || ''}" placeholder="User" class="border p-2 w-full mb-2">
+                <textarea id="logDetails" placeholder="Details" class="border p-2 w-full">${data.details || ''}</textarea>
+            `, 'Update', async () => {
+                const action = document.getElementById('logAction').value.trim();
+                const user = document.getElementById('logUser').value.trim();
+                const details = document.getElementById('logDetails').value.trim();
+                if (action && user) {
+                    await apiRequest(`/api/audit-log/${id}`, 'PUT', { action, user, details });
+                    readAuditLogs(filterInput.value);
+                    modal.classList.add('hidden');
+                } else {
+                    alert('Please fill in action and user.');
+                }
             });
-            modal.classList.add('hidden');
-            inputs.forEach(input => input.value = '');
-        } catch (error) {
-            // Error handled in apiRequest
-        }
+        } catch (error) {}
     }
 
-    // Update Audit Log
-    async function updateAuditLog(event) {
-        const row = event.target.closest('tr');
-        const id = row.cells[0].textContent;
-        modal.classList.remove('hidden');
-        const inputs = modal.querySelectorAll('input');
-        inputs[0].value = row.cells[1].textContent; // userRole
-        inputs[1].value = row.cells[2].textContent; // userName
-        inputs[2].value = row.cells[3].textContent; // action
-        inputs[3].value = row.cells[5].textContent; // details
-        inputs[4].value = row.cells[6].textContent; // status
-        saveLogBtn.onclick = async () => {
-            const log = {
-                userRole: inputs[0].value,
-                userName: inputs[1].value,
-                action: inputs[2].value,
-                details: inputs[3].value,
-                status: inputs[4].value
-            };
-            try {
-                await apiRequest(`/api/audit-logs/${id}`, 'PUT', log);
-                row.cells[1].textContent = log.userRole;
-                row.cells[2].textContent = log.userName;
-                row.cells[3].textContent = log.action;
-                row.cells[5].textContent = log.details;
-                row.cells[6].textContent = log.status;
-                modal.classList.add('hidden');
-                inputs.forEach(input => input.value = '');
-            } catch (error) {
-                // Error handled in apiRequest
-            }
-        };
-    }
-
-    // Archive (Delete) Audit Log
-    async function archiveAuditLog(event) {
-        const row = event.target.closest('tr');
-        const id = row.cells[0].textContent;
+    // Delete (archive) audit log
+    async function deleteAuditLog(id) {
         if (confirm('Are you sure you want to archive this log?')) {
             try {
-                await apiRequest(`/api/audit-logs/${id}`, 'DELETE');
-                row.remove();
-            } catch (error) {
-                // Error handled in apiRequest
-            }
+                await apiRequest(`/api/audit-log/${id}`, 'DELETE');
+                readAuditLogs(filterInput.value);
+                alert('Log archived successfully!');
+            } catch (error) {}
         }
     }
 
-    // Event Listeners
-    searchLogsBtn?.addEventListener('click', () => modal.classList.remove('hidden'));
-    filterLogsBtn?.addEventListener('click', filterAuditLogs);
-    closeModalBtn?.addEventListener('click', () => {
-        modal.classList.add('hidden');
-        modal.querySelectorAll('input').forEach(input => input.value = '');
+    // Show Modal
+    function showModal(title, content, buttonText, action) {
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalContent').innerHTML = content;
+        document.getElementById('modalAction').textContent = buttonText;
+        document.getElementById('modalAction').onclick = action;
+        modal.classList.remove('hidden');
+    }
+
+    // Close Modal
+    document.querySelector('.close').addEventListener('click', () => modal.classList.add('hidden'));
+
+    // Filter logs
+    filterInput.addEventListener('input', () => readAuditLogs(filterInput.value));
+
+    // Sidebar toggle
+    document.getElementById('toggleSidebar').addEventListener('click', () => {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('collapsed');
+        const mainContent = document.getElementById('mainContent');
+        mainContent.classList.toggle('ml-64');
+        mainContent.classList.toggle('ml-20');
     });
-    tableBody?.addEventListener('click', (e) => {
-        if (e.target.classList.contains('edit-log')) updateAuditLog(e);
-        if (e.target.classList.contains('archive-log')) archiveAuditLog(e);
+
+    // Highlight active page
+    const navLinks = document.querySelectorAll('ul a');
+    const currentPage = window.location.pathname.split('/').pop() || 'audit-log';
+    navLinks.forEach(link => {
+        if (link.getAttribute('href').includes(currentPage)) {
+            link.classList.add('bg-gray-700');
+        }
+        link.addEventListener('click', () => {
+            navLinks.forEach(l => l.classList.remove('bg-gray-700'));
+            link.classList.add('bg-gray-700');
+        });
     });
 
     // Initialize
     readAuditLogs();
-});
-
-// Sidebar toggle
-document.getElementById('toggleSidebar').addEventListener('click', () => {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.toggle('collapsed');
-});
-
-// Highlight active page
-const navLinks = document.querySelectorAll('ul a');
-const currentPage = window.location.pathname.split('/').pop();
-navLinks.forEach(link => {
-    if (link.getAttribute('href').includes(currentPage)) {
-        link.classList.add('bg-gray-700');
-    }
-    link.addEventListener('click', () => {
-        navLinks.forEach(l => l.classList.remove('bg-gray-700'));
-        link.classList.add('bg-gray-700');
-    });
 });

@@ -1,9 +1,9 @@
-// Utility function for API requests
 async function apiRequest(url, method, data = null) {
     try {
         const options = {
             method,
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
         };
         if (data) {
             options.body = JSON.stringify(data);
@@ -19,138 +19,122 @@ async function apiRequest(url, method, data = null) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const addFeeBtn = document.getElementById('addFee');
+    const feeTable = document.getElementById('feeTable');
     const modal = document.getElementById('modal');
-    const addTuitionFeeBtn = document.getElementById('addTuitionFee');
-    const saveTuitionFeeBtn = document.getElementById('saveTuitionFee');
-    const closeModalBtn = document.getElementById('closeModal');
-    const tableBody = document.querySelector('tbody');
 
-    // Create Tuition Fee
-    async function createTuitionFee() {
-        const inputs = modal.querySelectorAll('input');
-        const tuitionFee = {
-            type: inputs[0].value,
-            amount: inputs[1].value
-        };
-        if (!tuitionFee.type || !tuitionFee.amount) {
-            alert('Type and Amount are required.');
-            return;
-        }
+    // Fetch and display tuition fees
+    async function readFees() {
         try {
-            await apiRequest('/api/tuition-fees', 'POST', tuitionFee);
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td class="border p-2">${tuitionFee.type}</td>
-                <td class="border p-2">${tuitionFee.amount}</td>
-                <td class="border p-2">
-                    <button class="bg-green-500 text-white p-1 rounded edit-tuition-fee">Edit</button>
-                    <button class="bg-red-500 text-white p-1 rounded delete-tuition-fee">Delete</button>
-                </td>`;
-            tableBody.appendChild(row);
-            modal.classList.add('hidden');
-            inputs.forEach(input => input.value = '');
-        } catch (error) {
-            // Error handled in apiRequest
-        }
-    }
-
-    // Read Tuition Fees
-    async function readTuitionFees() {
-        try {
-            const tuitionFees = await apiRequest('/api/tuition-fees', 'GET');
-            tableBody.innerHTML = '';
-            tuitionFees.forEach(fee => {
+            const data = await apiRequest('/api/tuition-fee', 'GET');
+            feeTable.innerHTML = '';
+            data.forEach(fee => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td class="border p-2">${fee.type}</td>
-                    <td class="border p-2">${fee.amount}</td>
+                    <td class="border p-2">${fee.type || 'N/A'}</td>
+                    <td class="border p-2">$${parseFloat(fee.amount).toFixed(2)}</td>
                     <td class="border p-2">
-                        <button class="bg-green-500 text-white p-1 rounded edit-tuition-fee">Edit</button>
-                        <button class="bg-red-500 text-white p-1 rounded delete-tuition-fee">Delete</button>
-                    </td>`;
-                tableBody.appendChild(row);
+                        <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${fee.id}">Edit</button>
+                        <button class="delete-btn bg-red-500 text-white p-1 rounded" data-id="${fee.id}">Delete</button>
+                    </td>
+                `;
+                feeTable.appendChild(row);
             });
-        } catch (error) {
-            tableBody.innerHTML = '<tr><td colspan="3">Error loading tuition fees.</td></tr>';
+
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', () => editFee(btn.dataset.id));
+            });
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', () => deleteFee(btn.dataset.id));
+            });
+        } catch (error) {}
+    }
+
+    // Add or edit tuition fee
+    async function saveFee() {
+        const id = document.getElementById('feeId').value;
+        const type = document.getElementById('feeType').value.trim();
+        const amount = parseFloat(document.getElementById('feeAmount').value);
+        if (type && !isNaN(amount) && amount > 0) {
+            try {
+                const method = id ? 'PUT' : 'POST';
+                const url = id ? `/api/tuition-fee/${id}` : '/api/tuition-fee';
+                await apiRequest(url, method, { type, amount });
+                readFees();
+                modal.classList.add('hidden');
+                alert(id ? 'Tuition fee updated!' : 'Tuition fee added!');
+            } catch (error) {}
+        } else {
+            alert('Please fill in all fields with valid data.');
         }
     }
 
-    // Update Tuition Fee
-    async function updateTuitionFee(event) {
-        const row = event.target.closest('tr');
-        const type = row.cells[0].textContent;
-        modal.classList.remove('hidden');
-        const inputs = modal.querySelectorAll('input');
-        inputs[0].value = row.cells[0].textContent;
-        inputs[1].value = row.cells[1].textContent;
-        saveTuitionFeeBtn.onclick = async () => {
-            const tuitionFee = {
-                type: inputs[0].value,
-                amount: inputs[1].value
-            };
-            if (!tuitionFee.type || !tuitionFee.amount) {
-                alert('Type and Amount are required.');
-                return;
-            }
-            try {
-                await apiRequest(`/api/tuition-fees/${type}`, 'PUT', tuitionFee);
-                row.cells[0].textContent = tuitionFee.type;
-                row.cells[1].textContent = tuitionFee.amount;
-                modal.classList.add('hidden');
-                inputs.forEach(input => input.value = '');
-            } catch (error) {
-                // Error handled in apiRequest
-            }
-        };
+    // Edit tuition fee
+    async function editFee(id) {
+        try {
+            const data = await apiRequest(`/api/tuition-fee/${id}`, 'GET');
+            showModal('Edit Tuition Fee', `
+                <input type="hidden" id="feeId" value="${data.id}">
+                <input type="text" id="feeType" value="${data.type || ''}" placeholder="Fee Type" class="border p-2 w-full mb-2">
+                <input type="number" id="feeAmount" value="${data.amount || ''}" placeholder="Amount" step="0.01" class="border p-2 w-full">
+            `, 'Update', saveFee);
+        } catch (error) {}
     }
 
-    // Delete Tuition Fee
-    async function deleteTuitionFee(event) {
-        const row = event.target.closest('tr');
-        const type = row.cells[0].textContent;
+    // Delete tuition fee
+    async function deleteFee(id) {
         if (confirm('Are you sure you want to delete this tuition fee?')) {
             try {
-                await apiRequest(`/api/tuition-fees/${type}`, 'DELETE');
-                row.remove();
-            } catch (error) {
-                // Error handled in apiRequest
-            }
+                await apiRequest(`/api/tuition-fee/${id}`, 'DELETE');
+                readFees();
+                alert('Tuition fee deleted!');
+            } catch (error) {}
         }
     }
 
-    // Event Listeners
-    addTuitionFeeBtn?.addEventListener('click', () => {
+    // Show Modal
+    function showModal(title, content, buttonText, action) {
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalContent').innerHTML = content;
+        document.getElementById('modalAction').textContent = buttonText;
+        document.getElementById('modalAction').onclick = action;
         modal.classList.remove('hidden');
-        saveTuitionFeeBtn.onclick = createTuitionFee;
+    }
+
+    // Close Modal
+    document.querySelector('.close').addEventListener('click', () => modal.classList.add('hidden'));
+
+    // Add fee button
+    addFeeBtn.addEventListener('click', () => {
+        showModal('Add Tuition Fee', `
+            <input type="hidden" id="feeId" value="">
+            <input type="text" id="feeType" placeholder="Fee Type" class="border p-2 w-full mb-2">
+            <input type="number" id="feeAmount" placeholder="Amount" step="0.01" class="border p-2 w-full">
+        `, 'Add', saveFee);
     });
-    closeModalBtn?.addEventListener('click', () => {
-        modal.classList.add('hidden');
-        modal.querySelectorAll('input').forEach(input => input.value = '');
+
+    // Sidebar toggle
+    document.getElementById('toggleSidebar').addEventListener('click', () => {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('collapsed');
+        const mainContent = document.getElementById('mainContent');
+        mainContent.classList.toggle('ml-64');
+        mainContent.classList.toggle('ml-20');
     });
-    tableBody?.addEventListener('click', (e) => {
-        if (e.target.classList.contains('edit-tuition-fee')) updateTuitionFee(e);
-        if (e.target.classList.contains('delete-tuition-fee')) deleteTuitionFee(e);
+
+    // Highlight active page
+    const navLinks = document.querySelectorAll('ul a');
+    const currentPage = window.location.pathname.split('/').pop() || 'tuition-fee';
+    navLinks.forEach(link => {
+        if (link.getAttribute('href').includes(currentPage)) {
+            link.classList.add('bg-gray-700');
+        }
+        link.addEventListener('click', () => {
+            navLinks.forEach(l => l.classList.remove('bg-gray-700'));
+            link.classList.add('bg-gray-700');
+        });
     });
 
     // Initialize
-    readTuitionFees();
-});
-
-// Sidebar toggle
-document.getElementById('toggleSidebar').addEventListener('click', () => {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.toggle('collapsed');
-});
-
-// Highlight active page
-const navLinks = document.querySelectorAll('ul a');
-const currentPage = window.location.pathname.split('/').pop();
-navLinks.forEach(link => {
-    if (link.getAttribute('href').includes(currentPage)) {
-        link.classList.add('bg-gray-700');
-    }
-    link.addEventListener('click', () => {
-        navLinks.forEach(l => l.classList.remove('bg-gray-700'));
-        link.classList.add('bg-gray-700');
-    });
+    readFees();
 });

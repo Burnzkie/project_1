@@ -10,17 +10,70 @@ body {
 
 /* Sidebar Styles */
 #sidebar {
+    position: fixed;
+    width: 256px;
+    height: 100%;
+    background-color: #4a5568;
+    color: #ffffff;
+    padding: 16px;
     z-index: 10;
+    transition: width 0.3s ease;
 }
+
 #sidebar.collapsed {
     width: 80px;
 }
-#sidebar.collapsed ul a span:first-child {
-    margin-right: 0;
+
+#sidebar.collapsed h2,
+#sidebar.collapsed ul li a span:not(.mr-2) {
+    display: none;
 }
-#sidebar.collapsed ul a {
-    text-align: center;
-    padding: 10px;
+
+#sidebar h2 {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+}
+
+#sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#sidebar ul li a {
+    display: block;
+    padding: 0.5rem;
+    color: #ffffff;
+    text-decoration: none;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+}
+
+#sidebar ul li a:hover {
+    background-color: #718096;
+}
+
+#sidebar ul li a span {
+    margin-right: 0.5rem;
+}
+
+/* Main Content */
+#mainContent {
+    margin-left: 256px;
+    padding: 1.5rem;
+    transition: margin-left 0.3s ease;
+}
+
+#sidebar.collapsed ~ #mainContent {
+    margin-left: 80px;
+}
+
+/* Box Class */
+.box {
+    display: flex;
+    flex-direction: column;
 }
 
 /* Profile Container Styles */
@@ -36,7 +89,7 @@ body {
 }
 
 /* Modal Styles */
-#actionModal, #editModal, #uploadModal {
+#actionModal, #editModal, #uploadModal, #viewImageModal {
     display: none;
     position: fixed;
     top: 50%;
@@ -51,15 +104,15 @@ body {
     max-width: 500px;
 }
 
-#actionModal.show, #editModal.show, #uploadModal.show {
-    display: block;
+#actionModal:not(.hidden), #editModal:not(.hidden), #uploadModal:not(.hidden), #viewImageModal:not(.hidden) {
+    display: flex;
 }
 
 #actionModal ul li button:hover, #editModal button:hover, #uploadModal button:hover {
     opacity: 0.9;
 }
 
-#editModal input, #uploadModal input {
+#editModal input, #editModal select, #uploadModal input {
     width: 100%;
     padding: 8px;
     margin-bottom: 10px;
@@ -85,25 +138,15 @@ button.bg-red-500 {
     color: #ffffff;
 }
 
-/* Overlay for Modals */
-#overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 40;
-}
-
-#overlay.show {
-    display: block;
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
-    #actionModal, #editModal, #uploadModal {
+    #sidebar {
+        width: 80px;
+    }
+    #mainContent {
+        margin-left: 80px;
+    }
+    #actionModal, #editModal, #uploadModal, #viewImageModal {
         width: 95%;
     }
 }

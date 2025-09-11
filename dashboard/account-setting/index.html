@@ -7,11 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-gray-200 flex">
+<body class="flex min-h-screen bg-gray-100">
     <!-- Sidebar -->
     <div class="fixed w-64 h-full bg-gray-800 text-white p-4 transition-all duration-300" id="sidebar">
+        <button id="toggleSidebar" class="p-2 bg-gray-700 text-white rounded mb-4">Toggle Sidebar</button>
         <h2 class="text-2xl font-bold mb-6">School Admin</h2>
-        <button id="toggleSidebar" class="mb-4 text-gray-400 hover:text-white">☰</button>
         <ul class="space-y-2">
             <li><a href="/dashboard/profile" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-profile"><span class="mr-2">👤</span> Profile</a></li>
             <li><a href="/dashboard/student-list" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-student-list"><span class="mr-2">📋</span> Student List</a></li>
@@ -25,21 +25,25 @@
             <li><a href="/login/Login.html" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-logout"><span class="mr-2">🚪</span> Logout</a></li>
         </ul>
     </div>
-    <div class="flex-1 p-6">
-        <h1 class="text-2xl font-bold mb-4">Account Setting</h1>
-        <div class="bg-white p-4 rounded shadow">
-            <p><strong>Username:</strong> testuser</p>
-            <p><strong>Email:</strong> test@example.com</p>
-            <button id="deactivateAccount" class="bg-red-500 text-white p-2 rounded mt-4">Deactivate Account</button>
+    <div class="flex-1 ml-64 p-6" id="mainContent">
+        <h1 class="text-2xl font-bold mb-4">Account Settings</h1>
+        <div class="bg-white p-6 rounded shadow">
+            <p><strong>Username:</strong> <span id="username"></span> <span class="text-blue-500 cursor-pointer" id="editUsername">Edit</span></p>
+            <p><strong>Email:</strong> <span id="email"></span> <span class="text-blue-500 cursor-pointer" id="editEmail">Edit</span></p>
+            <p><span class="text-red-500 cursor-pointer" id="deactivateAccount">Deactivate Account</span></p>
         </div>
     </div>
+
+    <!-- Modal -->
     <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-        <div class="bg-white p-4 rounded shadow">
-            <p>Are you sure you want to deactivate your account?</p>
-            <button id="confirmDeactivate" class="bg-red-500 text-white p-2 rounded mt-2">Yes</button>
-            <button id="cancelDeactivate" class="bg-green-500 text-white p-2 rounded mt-2 ml-2">No</button>
+        <div class="bg-white p-4 rounded shadow w-96">
+            <span class="close text-gray-500 float-right cursor-pointer">&times;</span>
+            <h3 class="text-lg font-semibold mb-2" id="modalTitle"></h3>
+            <div id="modalContent"></div>
+            <button id="modalAction" class="bg-green-500 text-white p-2 rounded mt-4"></button>
         </div>
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>
