@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tuition Fee</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="head">
+      <h2>Tuition Fee</h2>
+      <button class="btn btn-create" onclick="openModal()">
+        Create Tuition Fee
+      </button>
+    </div>
+
+    <table id="feeTable">
+      <thead>
+        <tr>
+          <th>Type Fee</th>
+          <th>Amount</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <!-- Modal -->
+    <div id="modal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h3 id="modalTitle">Add Tuition Fee</h3>
+        <div class="inputs">
+          <input type="text" id="typeFee" placeholder="Type Fee" />
+          <input type="number" id="amount" placeholder="Amount" />
+        </div>
+
+        <button class="btn btn-create" onclick="saveFee()">Save</button>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
