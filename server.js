@@ -95,9 +95,9 @@ app.get('/dashboard/:page', isAuthenticated, (req, res) => {
 });
 
 app.get('/dashboard', isAuthenticated, (req, res) => {
-    res.sendFile(path.join(__dirname, 'dashboard', 'dashboard.html'), (err) => {
+    res.sendFile(path.join(__dirname, 'dashboard', 'index.html'), (err) => {
         if (err) {
-            console.error(`File not found: ${path.join(__dirname, 'dashboard', 'dashboard.html')}`, err);
+            console.error(`File not found: ${path.join(__dirname, 'dashboard', 'index.html')}`, err);
             res.status(404).send('Page not found');
         }
     });
@@ -412,7 +412,7 @@ app.delete('/api/payment-plan/:id', isAuthenticated, async (req, res) => {
 });
 
 // API endpoints for refund-request (updated endpoint)
-app.get('/api/refund-request', isAuthenticated, async (req, res) => {
+app.get('/api/request-refund', isAuthenticated, async (req, res) => {
     try {
         const [results] = await db.query('SELECT id, paymentId, amount, description, status FROM refunds');
         res.json(results);
@@ -422,7 +422,7 @@ app.get('/api/refund-request', isAuthenticated, async (req, res) => {
     }
 });
 
-app.post('/api/refund-request', isAuthenticated, async (req, res) => {
+app.post('/request-refund', isAuthenticated, async (req, res) => {
     const { paymentId, amount, description, status } = req.body;
     if (!paymentId || !amount) return res.status(400).json({ error: 'Payment ID and amount are required' });
     try {
@@ -434,7 +434,7 @@ app.post('/api/refund-request', isAuthenticated, async (req, res) => {
     }
 });
 
-app.get('/api/refund-request/:id', isAuthenticated, async (req, res) => {
+app.get('/api/request-refund/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     try {
         const [results] = await db.query('SELECT id, paymentId, amount, description, status FROM refunds WHERE id = ?', [id]);
@@ -448,7 +448,7 @@ app.get('/api/refund-request/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-app.put('/api/refund-request/:id', isAuthenticated, async (req, res) => {
+app.put('/api/request-refund/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     const { paymentId, amount, description, status } = req.body;
     if (!paymentId || !amount) return res.status(400).json({ error: 'Payment ID and amount are required' });
@@ -461,7 +461,7 @@ app.put('/api/refund-request/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-app.delete('/api/refund-request/:id', isAuthenticated, async (req, res) => {
+app.delete('/api/request-refund/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     try {
         await db.query('DELETE FROM refunds WHERE id = ?', [id]);
