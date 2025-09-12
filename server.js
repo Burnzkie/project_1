@@ -23,29 +23,32 @@ const db = mysql.createPool({
 });
 
 // Middleware
-app.use(cors({ origin: 'http://localhost:3000', credentials: true })); // Restricted CORS
+app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public'))); // Serve public directory
-app.use('/dashboard', express.static(path.join(__dirname, 'dashboard')));
-app.use('/uploads', express.static(path.join(__dirname, 'Uploads')));
-app.use('/login', express.static(path.join(__dirname, 'login')));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/dashboard', express.static(path.join(__dirname, 'dashboard'))); // Serve dashboard static files
+app.use('/uploads', express.static(path.join(__dirname, 'Uploads'))); // Serve uploaded files
+app.use('/login', express.static(path.join(__dirname, 'login'))); // Serve login static files
 
 // Session middleware with MySQL store
 const sessionStore = new MySQLStore({}, db);
+sessionStore.on('error', (error) => {
+    console.error('Session store error:', error);
+});
 app.use(session({
     secret: crypto.randomBytes(32).toString('hex'),
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
-    cookie: { secure: false } // Set to true if using HTTPS
+    cookie: { secure: false, httpOnly: true, sameSite: 'lax' }
 }));
 
 // Rate limiting for login
 app.use('/login', rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // Limit each IP to 5 requests per window
-    message: 'Too many login attempts, please try again later.'
+    max: 10,
+    message: 'Too many login attempts, please try again after 15 minutes.'
 }));
 
 // Authentication middleware
@@ -61,7 +64,7 @@ app.use(async (req, res, next) => {
     if (req.session.user && ['POST', 'PUT', 'DELETE'].includes(req.method)) {
         const username = req.session.user.username;
         const action = req.method;
-        const details = `${req.method} ${req.originalUrl}`;
+        const details = `${req.method} ${req.originalUrl} ${JSON.stringify(req.body)}`;
         try {
             await db.query('INSERT INTO audit_logs (action, userName, timestamp, details) VALUES (?, ?, NOW(), ?)', [action, username, details]);
         } catch (error) {
@@ -82,23 +85,32 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'login', 'Login.html'));
 });
 
-// Protect dashboard routes
-app.get('/dashboard/:page', isAuthenticated, (req, res) => {
-    const page = req.params.page === 'index.html' ? 'dashboard' : req.params.page;
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.sendFile(path.join(__dirname, 'dashboard', `${page}.html`), (err) => {
-        if (err) {
-            console.error(`File not found: ${path.join(__dirname, 'dashboard', `${page}.html`)}`, err);
-            res.status(404).send('Page not found');
-        }
-    });
-});
+// Protect dashboard routes with dynamic path handling
+app.get('/dashboard/:path?', isAuthenticated, (req, res) => {
+    const requestedPath = req.params.path || ''; // Empty for root, subfolder name otherwise
+    let filePath;
 
-app.get('/dashboard', isAuthenticated, (req, res) => {
-    res.sendFile(path.join(__dirname, 'dashboard', 'index.html'), (err) => {
+    if (!requestedPath) {
+        // Serve the root dashboard/index.html
+        filePath = path.join(__dirname, 'dashboard', 'index.html');
+    } else {
+        // Serve the index.html inside the subfolder (e.g., dashboard/account-setting/index.html)
+        filePath = path.join(__dirname, 'dashboard', requestedPath, 'index.html');
+    }
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
+    fs.access(filePath, fs.constants.F_OK, (err) => {
         if (err) {
-            console.error(`File not found: ${path.join(__dirname, 'dashboard', 'index.html')}`, err);
+            console.error(`File not found: ${filePath}`, err);
             res.status(404).send('Page not found');
+        } else {
+            res.sendFile(filePath, (sendErr) => {
+                if (sendErr) {
+                    console.error(`Error sending file: ${filePath}`, sendErr);
+                    res.status(500).send('Internal server error');
+                }
+            });
         }
     });
 });
@@ -142,11 +154,12 @@ app.get('/api/profile', isAuthenticated, async (req, res) => {
 
 // API endpoint to update profile
 app.put('/api/profile', isAuthenticated, async (req, res) => {
+    console.log('Update profile request body:', req.body);
     const { name, dob } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
     const username = req.session.user.username;
     try {
-        await db.query('UPDATE user_info SET firstname = ?, dob = ? WHERE username = ?', [name, dob, username]);
+        await db.query('UPDATE user_info SET firstname = ?, dob = ? WHERE username = ?', [name, dob || null, username]);
         res.json({ message: 'Profile updated successfully' });
     } catch (error) {
         console.error('Error updating profile:', error);
@@ -155,13 +168,22 @@ app.put('/api/profile', isAuthenticated, async (req, res) => {
 });
 
 // API endpoint to upload profile picture
-app.post('/api/profile/upload', isAuthenticated, upload.single('profilePic'), async (req, res) => {
+app.post('/api/profile/upload', isAuthenticated, (req, res, next) => {
+    upload.single('profilePic')(req, res, (err) => {
+        if (err instanceof multer.MulterError) {
+            return res.status(400).json({ error: err.message });
+        } else if (err) {
+            return res.status(400).json({ error: err.message });
+        }
+        next();
+    });
+}, async (req, res) => {
     const file = req.file;
     if (!file) {
         return res.status(400).json({ error: 'No file uploaded' });
     }
     const username = req.session.user.username;
-    const profilePicturePath = `/uploads/${file.filename}`; // Changed to /uploads for consistency
+    const profilePicturePath = `/uploads/${file.filename}`;
     try {
         const [results] = await db.query('SELECT profile_picture FROM user_info WHERE username = ?', [username]);
         if (results.length > 0 && results[0].profile_picture) {
@@ -195,6 +217,7 @@ app.get('/api/account', isAuthenticated, async (req, res) => {
 
 // API endpoint to update account
 app.put('/api/account', isAuthenticated, async (req, res) => {
+    console.log('Update account request body:', req.body);
     const { username: newUsername, email } = req.body;
     if (!newUsername || !email) return res.status(400).json({ error: 'Username and email are required' });
     const currentUsername = req.session.user.username;
@@ -204,7 +227,7 @@ app.put('/api/account', isAuthenticated, async (req, res) => {
             return res.status(400).json({ error: 'Username already exists' });
         }
         await db.query('UPDATE user_info SET username = ?, email = ? WHERE username = ?', [newUsername, email, currentUsername]);
-        req.session.user.username = newUsername;
+        req.session.user.username = newUsername; // Update session with new username
         res.json({ message: 'Account updated successfully' });
     } catch (error) {
         console.error('Error updating account:', error);
@@ -224,8 +247,13 @@ app.delete('/api/account', isAuthenticated, async (req, res) => {
             }
         }
         await db.query('DELETE FROM user_info WHERE username = ?', [username]);
-        req.session.destroy();
-        res.json({ message: 'Account deactivated successfully' });
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Error destroying session:', err);
+                return res.status(500).json({ error: 'Logout failed' });
+            }
+            res.json({ message: 'Account deactivated successfully' });
+        });
     } catch (error) {
         console.error('Error deactivating account:', error);
         res.status(500).json({ error: 'Server error' });
@@ -265,11 +293,12 @@ app.get('/api/audit-log/:id', isAuthenticated, async (req, res) => {
 });
 
 app.put('/api/audit-log/:id', isAuthenticated, async (req, res) => {
+    console.log('Update audit log request body:', req.body);
     const { id } = req.params;
     const { action, user, details } = req.body;
     if (!action || !user) return res.status(400).json({ error: 'Action and user are required' });
     try {
-        await db.query('UPDATE audit_logs SET action = ?, userName = ?, details = ? WHERE id = ?', [action, user, details, id]);
+        await db.query('UPDATE audit_logs SET action = ?, userName = ?, details = ? WHERE id = ?', [action, user, details || '', id]);
         res.json({ message: 'Log updated' });
     } catch (error) {
         console.error('Error updating audit log:', error);
@@ -300,6 +329,7 @@ app.get('/api/payment-method', isAuthenticated, async (req, res) => {
 });
 
 app.post('/api/payment-method', isAuthenticated, async (req, res) => {
+    console.log('Add payment method request body:', req.body);
     const { name, description } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
     try {
@@ -326,6 +356,7 @@ app.get('/api/payment-method/:id', isAuthenticated, async (req, res) => {
 });
 
 app.put('/api/payment-method/:id', isAuthenticated, async (req, res) => {
+    console.log('Update payment method request body:', req.body);
     const { id } = req.params;
     const { name, description } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
@@ -350,7 +381,6 @@ app.delete('/api/payment-method/:id', isAuthenticated, async (req, res) => {
 });
 
 // API endpoints for payment-plan
-
 app.get('/api/payment-plan', isAuthenticated, async (req, res) => {
     try {
         const [results] = await db.query('SELECT id, name, amount, schedule FROM payment_plans');
@@ -362,6 +392,7 @@ app.get('/api/payment-plan', isAuthenticated, async (req, res) => {
 });
 
 app.post('/api/payment-plan', isAuthenticated, async (req, res) => {
+    console.log('Add payment plan request body:', req.body);
     const { name, amount, schedule } = req.body;
     if (!name || !amount || !schedule) return res.status(400).json({ error: 'Name, amount, and schedule are required' });
     try {
@@ -388,6 +419,7 @@ app.get('/api/payment-plan/:id', isAuthenticated, async (req, res) => {
 });
 
 app.put('/api/payment-plan/:id', isAuthenticated, async (req, res) => {
+    console.log('Update payment plan request body:', req.body);
     const { id } = req.params;
     const { name, amount, schedule } = req.body;
     if (!name || !amount || !schedule) return res.status(400).json({ error: 'Name, amount, and schedule are required' });
@@ -411,7 +443,7 @@ app.delete('/api/payment-plan/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-// API endpoints for refund-request (updated endpoint)
+// API endpoints for refund-request
 app.get('/api/request-refund', isAuthenticated, async (req, res) => {
     try {
         const [results] = await db.query('SELECT id, paymentId, amount, description, status FROM refunds');
@@ -422,7 +454,8 @@ app.get('/api/request-refund', isAuthenticated, async (req, res) => {
     }
 });
 
-app.post('/request-refund', isAuthenticated, async (req, res) => {
+app.post('/api/request-refund', isAuthenticated, async (req, res) => {
+    console.log('Add refund request body:', req.body);
     const { paymentId, amount, description, status } = req.body;
     if (!paymentId || !amount) return res.status(400).json({ error: 'Payment ID and amount are required' });
     try {
@@ -449,11 +482,12 @@ app.get('/api/request-refund/:id', isAuthenticated, async (req, res) => {
 });
 
 app.put('/api/request-refund/:id', isAuthenticated, async (req, res) => {
+    console.log('Update refund request body:', req.body);
     const { id } = req.params;
     const { paymentId, amount, description, status } = req.body;
     if (!paymentId || !amount) return res.status(400).json({ error: 'Payment ID and amount are required' });
     try {
-        await db.query('UPDATE refunds SET paymentId = ?, amount = ?, description = ?, status = ? WHERE id = ?', [paymentId, amount, description || '', status, id]);
+        await db.query('UPDATE refunds SET paymentId = ?, amount = ?, description = ?, status = ? WHERE id = ?', [paymentId, amount, description || '', status || 'Pending', id]);
         res.json({ message: 'Refund updated' });
     } catch (error) {
         console.error('Error updating refund:', error);
@@ -472,7 +506,7 @@ app.delete('/api/request-refund/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-// API endpoints for student (updated endpoint)
+// API endpoints for student
 app.get('/api/student', isAuthenticated, async (req, res) => {
     try {
         const [results] = await db.query('SELECT id, name, program, year_level, date, email, contact FROM students');
@@ -484,6 +518,7 @@ app.get('/api/student', isAuthenticated, async (req, res) => {
 });
 
 app.post('/api/student', isAuthenticated, async (req, res) => {
+    console.log('Add student request body:', req.body);
     const { name, program, year_level, date, email, contact } = req.body;
     if (!name || !program || !year_level || !date || !email || !contact) return res.status(400).json({ error: 'All fields are required' });
     try {
@@ -510,6 +545,7 @@ app.get('/api/student/:id', isAuthenticated, async (req, res) => {
 });
 
 app.put('/api/student/:id', isAuthenticated, async (req, res) => {
+    console.log('Update student request body:', req.body);
     const { id } = req.params;
     const { name, program, year_level, date, email, contact } = req.body;
     if (!name || !program || !year_level || !date || !email || !contact) return res.status(400).json({ error: 'All fields are required' });
@@ -545,6 +581,7 @@ app.get('/api/student-payment', isAuthenticated, async (req, res) => {
 });
 
 app.post('/api/student-payment', isAuthenticated, async (req, res) => {
+    console.log('Add student payment request body:', req.body);
     const { studentId, studentName, amount, description } = req.body;
     if (!studentId || !studentName || !amount) return res.status(400).json({ error: 'Student ID, name, and amount are required' });
     try {
@@ -571,6 +608,7 @@ app.get('/api/student-payment/:id', isAuthenticated, async (req, res) => {
 });
 
 app.put('/api/student-payment/:id', isAuthenticated, async (req, res) => {
+    console.log('Update student payment request body:', req.body);
     const { id } = req.params;
     const { studentId, studentName, amount, description } = req.body;
     if (!studentId || !studentName || !amount) return res.status(400).json({ error: 'Student ID, name, and amount are required' });
@@ -595,6 +633,7 @@ app.delete('/api/student-payment/:id', isAuthenticated, async (req, res) => {
 });
 
 app.post('/api/student-payment/refund', isAuthenticated, async (req, res) => {
+    console.log('Add student payment refund request body:', req.body);
     const { studentId, studentName, amount, description } = req.body;
     if (!studentId || !amount) return res.status(400).json({ error: 'Student ID and amount are required' });
     try {
@@ -618,11 +657,12 @@ app.get('/api/tuition-fee', isAuthenticated, async (req, res) => {
 });
 
 app.post('/api/tuition-fee', isAuthenticated, async (req, res) => {
+    console.log('Add tuition fee request body:', req.body);
     const { type, amount } = req.body;
     if (!type || !amount) return res.status(400).json({ error: 'Type and amount are required' });
     try {
-        await db.query('INSERT INTO tuition_fees (type, amount) VALUES (?, ?)', [type, amount]);
-        res.json({ message: 'Tuition fee added' });
+        const [result] = await db.query('INSERT INTO tuition_fees (type, amount) VALUES (?, ?)', [type, amount]);
+        res.json({ message: 'Tuition fee added', id: result.insertId });
     } catch (error) {
         console.error('Error adding tuition fee:', error);
         res.status(500).json({ error: 'Server error' });
@@ -644,6 +684,7 @@ app.get('/api/tuition-fee/:id', isAuthenticated, async (req, res) => {
 });
 
 app.put('/api/tuition-fee/:id', isAuthenticated, async (req, res) => {
+    console.log('Update tuition fee request body:', req.body);
     const { id } = req.params;
     const { type, amount } = req.body;
     if (!type || !amount) return res.status(400).json({ error: 'Type and amount are required' });
@@ -680,6 +721,7 @@ app.get('/test-db', async (req, res) => {
 
 // Signup route
 app.post('/signup', async (req, res) => {
+    console.log('Signup request body:', req.body);
     const { firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, password, role } = req.body;
 
     try {
@@ -727,6 +769,7 @@ app.post('/signup', async (req, res) => {
 
 // Login route
 app.post('/login', async (req, res) => {
+    console.log('Login request body:', req.body);
     const { username, password } = req.body;
 
     try {
@@ -738,8 +781,8 @@ app.post('/login', async (req, res) => {
         const user = results[0];
         const match = await bcrypt.compare(password, user.password);
         if (match) {
-            req.session.user = { username: user.username };
-            res.json({ redirect: `/dashboard?username=${username}` });
+            req.session.user = { username: user.username, role: user.role }; // Include role in session
+            res.json({ redirect: '/dashboard/' }); // Redirect to dashboard root
         } else {
             res.status(401).json({ error: 'Invalid username or password.' });
         }
@@ -764,6 +807,12 @@ app.get('/logout', (req, res) => {
         }
         res.json({ redirect: '/login/Login.html' });
     });
+});
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Unexpected server error:', err.stack);
+    res.status(500).json({ error: 'Internal server error' });
 });
 
 // Start the server

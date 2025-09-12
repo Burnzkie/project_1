@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Highlight active page
     const navLinks = document.querySelectorAll('ul a');
-    const currentPage = window.location.pathname.split('/').pop() || 'dashboard';
+    const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'dashboard';
     navLinks.forEach(link => {
         if (link.getAttribute('href').includes(currentPage)) {
             link.classList.add('bg-gray-700');

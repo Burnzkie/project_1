@@ -3,37 +3,43 @@ async function apiRequest(url, method, data = null) {
         const options = {
             method,
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'include', 
+            credentials: 'include',
         };
-        if (data) {
-            options.body = JSON.stringify(data);
-        }
+        if (data) options.body = JSON.stringify(data);
         const response = await fetch(url, options);
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`HTTP error! Status: ${response.status}, ${errorText}`);
+            throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorText || 'Unknown'}`);
         }
         return await response.json();
     } catch (error) {
         console.error('API request error:', error);
-        alert(`Error: ${error.message}`);
+        alert(`API Error: ${error.message}`);
         throw error;
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     // Fetch account data
-    apiRequest('/api/account', 'GET').then(data => {
-        document.getElementById('username').textContent = data.username || 'N/A';
-        document.getElementById('email').textContent = data.email || 'N/A';
-    }).catch(() => {});
+    async function readAccount() {
+        try {
+            const data = await apiRequest('/api/account', 'GET');
+            document.getElementById('username').textContent = data.username || 'N/A';
+            document.getElementById('email').textContent = data.email || 'N/A';
+        } catch (error) {
+            console.error('Failed to load account:', error);
+        }
+    }
 
     // Edit username
     document.getElementById('editUsername').addEventListener('click', () => {
-        showModal('Edit Username', '<input type="text" id="newUsername" placeholder="New Username" class="border p-2 w-full">', 'Update', () => {
+        showModal('Edit Username', '<input type="text" id="newUsername" placeholder="New Username" class="border p-2 w-full">', 'Update', async () => {
             const newUsername = document.getElementById('newUsername').value.trim();
             if (newUsername) {
-                apiRequest('/api/account', 'PUT', { username: newUsername, email: document.getElementById('email').textContent }).then(() => location.reload());
+                try {
+                    await apiRequest('/api/account', 'PUT', { username: newUsername, email: document.getElementById('email').textContent });
+                    location.reload();
+                } catch (error) {}
             } else {
                 alert('Please enter a username.');
             }
@@ -42,10 +48,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Edit email
     document.getElementById('editEmail').addEventListener('click', () => {
-        showModal('Edit Email', '<input type="email" id="newEmail" placeholder="New Email" class="border p-2 w-full">', 'Update', () => {
+        showModal('Edit Email', '<input type="email" id="newEmail" placeholder="New Email" class="border p-2 w-full">', 'Update', async () => {
             const newEmail = document.getElementById('newEmail').value.trim();
             if (newEmail) {
-                apiRequest('/api/account', 'PUT', { username: document.getElementById('username').textContent, email: newEmail }).then(() => location.reload());
+                try {
+                    await apiRequest('/api/account', 'PUT', { username: document.getElementById('username').textContent, email: newEmail });
+                    location.reload();
+                } catch (error) {}
             } else {
                 alert('Please enter an email.');
             }
@@ -54,8 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Deactivate account
     document.getElementById('deactivateAccount').addEventListener('click', () => {
-        showModal('Deactivate Account', '<p>Are you sure you want to deactivate your account?</p>', 'Deactivate', () => {
-            apiRequest('/api/account', 'DELETE').then(() => window.location.href = '/login/Login.html');
+        showModal('Deactivate Account', '<p>Are you sure you want to deactivate your account?</p>', 'Deactivate', async () => {
+            try {
+                await apiRequest('/api/account', 'DELETE');
+                window.location.href = '/login/Login.html';
+            } catch (error) {}
         });
     });
 
@@ -77,12 +89,12 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebar.classList.toggle('collapsed');
         const mainContent = document.getElementById('mainContent');
         mainContent.classList.toggle('ml-64');
-        mainContent.classList.toggle('ml-20'); // for collapsed width 80px
+        mainContent.classList.toggle('ml-20');
     });
 
     // Highlight active page
     const navLinks = document.querySelectorAll('ul a');
-    const currentPage = window.location.pathname.split('/').pop();
+    const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'account-setting';
     navLinks.forEach(link => {
         if (link.getAttribute('href').includes(currentPage)) {
             link.classList.add('bg-gray-700');
@@ -92,4 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
             link.classList.add('bg-gray-700');
         });
     });
+
+    // Initialize
+    readAccount();
 });

@@ -190,8 +190,8 @@ loginBtn.addEventListener('click', async (e) => {
     });
 
     const data = await response.json();
-    if (response.redirected || data.redirect) {
-      window.location.href = data.redirect || response.url;
+    if (response.ok) {
+      window.location.href = '/dashboard/index.html'; // Direct redirect to dashboard
     } else {
       alert(data.error || 'Login failed. Please try again.');
     }
@@ -233,11 +233,11 @@ signupBtn.addEventListener('click', async (e) => {
     });
 
     const data = await response.json();
-    if (response.redirected || data.redirect) {
+    if (response.ok) {
       signupForm.reset();
       signupForm.style.display = 'none';
       loginForm.style.display = 'block';
-      window.location.href = data.redirect || response.url;
+      alert('Signup successful! Please log in.');
     } else {
       alert(data.error || 'Registration failed. Please try again.');
     }

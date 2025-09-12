@@ -5,15 +5,16 @@ async function apiRequest(url, method, data = null) {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
         };
-        if (data) {
-            options.body = JSON.stringify(data);
-        }
+        if (data) options.body = JSON.stringify(data);
         const response = await fetch(url, options);
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorText || 'Unknown'}`);
+        }
         return await response.json();
     } catch (error) {
         console.error('API request error:', error);
-        alert(`Error: ${error.message}`);
+        alert(`API Error: ${error.message}`);
         throw error;
     }
 }
@@ -33,11 +34,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 row.innerHTML = `
                     <td class="border p-2">${payment.studentId || 'N/A'}</td>
                     <td class="border p-2">${payment.studentName || 'N/A'}</td>
-                    <td class="border p-2">$${parseFloat(payment.amount).toFixed(2)}</td>
+                    <td class="border p-2">${payment.amount || 'N/A'}</td>
                     <td class="border p-2">${payment.description || 'N/A'}</td>
                     <td class="border p-2">
                         <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${payment.id}">Edit</button>
-                        <button class="delete-btn bg-red-500 text-white p-1 rounded mr-2" data-id="${payment.id}">Delete</button>
+                        <button class="delete-btn bg-red-500 text-white p-1 rounded" data-id="${payment.id}">Delete</button>
                         <button class="refund-btn bg-yellow-500 text-white p-1 rounded" data-id="${payment.id}">Refund</button>
                     </td>
                 `;
@@ -53,7 +54,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.refund-btn').forEach(btn => {
                 btn.addEventListener('click', () => requestRefund(btn.dataset.id));
             });
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to load payments:', error);
+        }
     }
 
     // Add or edit payment
@@ -71,7 +74,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 readPayments();
                 modal.classList.add('hidden');
                 alert(id ? 'Payment updated!' : 'Payment added!');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Failed to save payment:', error);
+            }
         } else {
             alert('Please fill in all required fields with valid data.');
         }
@@ -88,7 +93,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <input type="number" id="amount" value="${data.amount || ''}" placeholder="Amount" step="0.01" class="border p-2 w-full mb-2">
                 <textarea id="description" placeholder="Description" class="border p-2 w-full">${data.description || ''}</textarea>
             `, 'Update', savePayment);
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to load payment for edit:', error);
+        }
     }
 
     // Delete payment
@@ -98,7 +105,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 await apiRequest(`/api/student-payment/${id}`, 'DELETE');
                 readPayments();
                 alert('Payment deleted!');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Failed to delete payment:', error);
+            }
         }
     }
 
@@ -109,7 +118,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const { studentId, studentName, amount, description } = data;
             await apiRequest('/api/student-payment/refund', 'POST', { studentId, studentName, amount, description });
             alert('Refund requested!');
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to request refund:', error);
+            alert(`Error: ${error.message}`);
+        }
     }
 
     // Show Modal
@@ -146,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Highlight active page
     const navLinks = document.querySelectorAll('ul a');
-    const currentPage = window.location.pathname.split('/').pop() || 'student-payment';
+    const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'student-payment';
     navLinks.forEach(link => {
         if (link.getAttribute('href').includes(currentPage)) {
             link.classList.add('bg-gray-700');

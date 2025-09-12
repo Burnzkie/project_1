@@ -5,15 +5,16 @@ async function apiRequest(url, method, data = null) {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
         };
-        if (data) {
-            options.body = JSON.stringify(data);
-        }
+        if (data) options.body = JSON.stringify(data);
         const response = await fetch(url, options);
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorText || 'Unknown'}`);
+        }
         return await response.json();
     } catch (error) {
         console.error('API request error:', error);
-        alert(`Error: ${error.message}`);
+        alert(`API Error: ${error.message}`);
         throw error;
     }
 }
@@ -52,7 +53,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', () => deleteStudent(btn.dataset.id));
             });
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to load students:', error);
+        }
     }
 
     // Add or edit student
@@ -72,7 +75,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 readStudents();
                 modal.classList.add('hidden');
                 alert(id ? 'Student updated!' : 'Student added!');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Failed to save student:', error);
+            }
         } else {
             alert('Please fill in all required fields (Name, Program, Year Level, Email).');
         }
@@ -91,7 +96,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <input type="email" id="studentEmail" value="${data.email || ''}" placeholder="Email" class="border p-2 w-full mb-2">
                 <input type="text" id="studentContact" value="${data.contact || ''}" placeholder="Contact" class="border p-2 w-full">
             `, 'Update', saveStudent);
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to load student for edit:', error);
+        }
     }
 
     // Delete student
@@ -101,7 +108,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 await apiRequest(`/api/student-list/${id}`, 'DELETE');
                 readStudents();
                 alert('Student deleted!');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Failed to delete student:', error);
+            }
         }
     }
 
@@ -141,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Highlight active page
     const navLinks = document.querySelectorAll('ul a');
-    const currentPage = window.location.pathname.split('/').pop() || 'student-list';
+    const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'student-list';
     navLinks.forEach(link => {
         if (link.getAttribute('href').includes(currentPage)) {
             link.classList.add('bg-gray-700');

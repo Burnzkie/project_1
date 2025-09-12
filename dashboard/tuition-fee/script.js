@@ -5,15 +5,16 @@ async function apiRequest(url, method, data = null) {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
         };
-        if (data) {
-            options.body = JSON.stringify(data);
-        }
+        if (data) options.body = JSON.stringify(data);
         const response = await fetch(url, options);
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorText || 'Unknown'}`);
+        }
         return await response.json();
     } catch (error) {
         console.error('API request error:', error);
-        alert(`Error: ${error.message}`);
+        alert(`API Error: ${error.message}`);
         throw error;
     }
 }
@@ -32,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td class="border p-2">${fee.type || 'N/A'}</td>
-                    <td class="border p-2">$${parseFloat(fee.amount).toFixed(2)}</td>
+                    <td class="border p-2">${fee.amount || 'N/A'}</td>
                     <td class="border p-2">
                         <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${fee.id}">Edit</button>
                         <button class="delete-btn bg-red-500 text-white p-1 rounded" data-id="${fee.id}">Delete</button>
@@ -47,7 +48,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', () => deleteFee(btn.dataset.id));
             });
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to load tuition fees:', error);
+        }
     }
 
     // Add or edit tuition fee
@@ -63,7 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 readFees();
                 modal.classList.add('hidden');
                 alert(id ? 'Tuition fee updated!' : 'Tuition fee added!');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Failed to save tuition fee:', error);
+            }
         } else {
             alert('Please fill in all fields with valid data.');
         }
@@ -78,7 +83,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <input type="text" id="feeType" value="${data.type || ''}" placeholder="Fee Type" class="border p-2 w-full mb-2">
                 <input type="number" id="feeAmount" value="${data.amount || ''}" placeholder="Amount" step="0.01" class="border p-2 w-full">
             `, 'Update', saveFee);
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to load tuition fee for edit:', error);
+        }
     }
 
     // Delete tuition fee
@@ -88,7 +95,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 await apiRequest(`/api/tuition-fee/${id}`, 'DELETE');
                 readFees();
                 alert('Tuition fee deleted!');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Failed to delete tuition fee:', error);
+            }
         }
     }
 
@@ -124,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Highlight active page
     const navLinks = document.querySelectorAll('ul a');
-    const currentPage = window.location.pathname.split('/').pop() || 'tuition-fee';
+    const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'tuition-fee';
     navLinks.forEach(link => {
         if (link.getAttribute('href').includes(currentPage)) {
             link.classList.add('bg-gray-700');

@@ -5,15 +5,16 @@ async function apiRequest(url, method, data = null) {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
         };
-        if (data) {
-            options.body = JSON.stringify(data);
-        }
+        if (data) options.body = JSON.stringify(data);
         const response = await fetch(url, options);
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorText || 'Unknown'}`);
+        }
         return await response.json();
     } catch (error) {
         console.error('API request error:', error);
-        alert(`Error: ${error.message}`);
+        alert(`API Error: ${error.message}`);
         throw error;
     }
 }
@@ -32,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td class="border p-2">${plan.name || 'N/A'}</td>
-                    <td class="border p-2">$${parseFloat(plan.amount).toFixed(2)}</td>
+                    <td class="border p-2">${plan.amount || 'N/A'}</td>
                     <td class="border p-2">${plan.schedule || 'N/A'}</td>
                     <td class="border p-2">
                         <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${plan.id}">Edit</button>
@@ -48,7 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', () => deletePaymentPlan(btn.dataset.id));
             });
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to load payment plans:', error);
+        }
     }
 
     // Add or edit payment plan
@@ -65,7 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 readPaymentPlans();
                 modal.classList.add('hidden');
                 alert(id ? 'Payment plan updated!' : 'Payment plan added!');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Failed to save payment plan:', error);
+            }
         } else {
             alert('Please fill in all fields with valid data.');
         }
@@ -81,7 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <input type="number" id="planAmount" value="${data.amount || ''}" placeholder="Amount" step="0.01" class="border p-2 w-full mb-2">
                 <input type="text" id="planSchedule" value="${data.schedule || ''}" placeholder="Schedule (e.g., Monthly)" class="border p-2 w-full">
             `, 'Update', savePaymentPlan);
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to load payment plan for edit:', error);
+        }
     }
 
     // Delete payment plan
@@ -91,7 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 await apiRequest(`/api/payment-plan/${id}`, 'DELETE');
                 readPaymentPlans();
                 alert('Payment plan deleted!');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Failed to delete payment plan:', error);
+            }
         }
     }
 
@@ -128,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Highlight active page
     const navLinks = document.querySelectorAll('ul a');
-    const currentPage = window.location.pathname.split('/').pop() || 'payment-plan';
+    const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'payment-plan';
     navLinks.forEach(link => {
         if (link.getAttribute('href').includes(currentPage)) {
             link.classList.add('bg-gray-700');

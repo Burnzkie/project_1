@@ -5,15 +5,16 @@ async function apiRequest(url, method, data = null) {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
         };
-        if (data) {
-            options.body = JSON.stringify(data);
-        }
+        if (data) options.body = JSON.stringify(data);
         const response = await fetch(url, options);
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorText || 'Unknown'}`);
+        }
         return await response.json();
     } catch (error) {
         console.error('API request error:', error);
-        alert(`Error: ${error.message}`);
+        alert(`API Error: ${error.message}`);
         throw error;
     }
 }
@@ -49,7 +50,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', () => deleteAuditLog(btn.dataset.id));
             });
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to load audit logs:', error);
+        }
     }
 
     // Edit audit log
@@ -73,7 +76,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert('Please fill in action and user.');
                 }
             });
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to edit audit log:', error);
+        }
     }
 
     // Delete (archive) audit log
@@ -83,7 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 await apiRequest(`/api/audit-log/${id}`, 'DELETE');
                 readAuditLogs(filterInput.value);
                 alert('Log archived successfully!');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Failed to delete audit log:', error);
+            }
         }
     }
 
@@ -113,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Highlight active page
     const navLinks = document.querySelectorAll('ul a');
-    const currentPage = window.location.pathname.split('/').pop() || 'audit-log';
+    const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'audit-log';
     navLinks.forEach(link => {
         if (link.getAttribute('href').includes(currentPage)) {
             link.classList.add('bg-gray-700');

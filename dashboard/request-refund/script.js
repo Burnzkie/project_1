@@ -5,15 +5,16 @@ async function apiRequest(url, method, data = null) {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
         };
-        if (data) {
-            options.body = JSON.stringify(data);
-        }
+        if (data) options.body = JSON.stringify(data);
         const response = await fetch(url, options);
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorText || 'Unknown'}`);
+        }
         return await response.json();
     } catch (error) {
         console.error('API request error:', error);
-        alert(`Error: ${error.message}`);
+        alert(`API Error: ${error.message}`);
         throw error;
     }
 }
@@ -32,9 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td class="border p-2">${refund.paymentId || 'N/A'}</td>
-                    <td class="border p-2">$${parseFloat(refund.amount).toFixed(2)}</td>
+                    <td class="border p-2">${refund.amount || 'N/A'}</td>
                     <td class="border p-2">${refund.description || 'N/A'}</td>
-                    <td class="border p-2">${refund.status || 'Pending'}</td>
+                    <td class="border p-2">${refund.status || 'N/A'}</td>
                     <td class="border p-2">
                         <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${refund.id}">Edit</button>
                         <button class="delete-btn bg-red-500 text-white p-1 rounded" data-id="${refund.id}">Delete</button>
@@ -49,7 +50,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', () => deleteRefundRequest(btn.dataset.id));
             });
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to load refund requests:', error);
+        }
     }
 
     // Add or edit refund request
@@ -67,7 +70,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 readRefundRequests();
                 modal.classList.add('hidden');
                 alert(id ? 'Refund request updated!' : 'Refund request added!');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Failed to save refund request:', error);
+            }
         } else {
             alert('Please fill in all required fields.');
         }
@@ -88,7 +93,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <option value="Rejected" ${data.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
                 </select>
             `, 'Update', saveRefundRequest);
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to load refund request for edit:', error);
+        }
     }
 
     // Delete refund request
@@ -98,7 +105,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 await apiRequest(`/api/request-refund/${id}`, 'DELETE');
                 readRefundRequests();
                 alert('Refund request deleted!');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Failed to delete refund request:', error);
+            }
         }
     }
 
@@ -140,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Highlight active page
     const navLinks = document.querySelectorAll('ul a');
-    const currentPage = window.location.pathname.split('/').pop() || 'request-refund';
+    const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'request-refund';
     navLinks.forEach(link => {
         if (link.getAttribute('href').includes(currentPage)) {
             link.classList.add('bg-gray-700');

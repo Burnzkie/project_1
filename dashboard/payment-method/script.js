@@ -5,15 +5,16 @@ async function apiRequest(url, method, data = null) {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
         };
-        if (data) {
-            options.body = JSON.stringify(data);
-        }
+        if (data) options.body = JSON.stringify(data);
         const response = await fetch(url, options);
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorText || 'Unknown'}`);
+        }
         return await response.json();
     } catch (error) {
         console.error('API request error:', error);
-        alert(`Error: ${error.message}`);
+        alert(`API Error: ${error.message}`);
         throw error;
     }
 }
@@ -46,7 +47,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', () => deletePaymentMethod(btn.dataset.id));
             });
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to load payment methods:', error);
+        }
     }
 
     // Add or edit payment method
@@ -62,7 +65,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 readPaymentMethods();
                 modal.classList.add('hidden');
                 alert(id ? 'Payment method updated!' : 'Payment method added!');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Failed to save payment method:', error);
+            }
         } else {
             alert('Please enter a method name.');
         }
@@ -77,7 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <input type="text" id="methodName" value="${data.name || ''}" placeholder="Method Name" class="border p-2 w-full mb-2">
                 <textarea id="methodDescription" placeholder="Description" class="border p-2 w-full">${data.description || ''}</textarea>
             `, 'Update', savePaymentMethod);
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to load payment method for edit:', error);
+        }
     }
 
     // Delete payment method
@@ -87,7 +94,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 await apiRequest(`/api/payment-method/${id}`, 'DELETE');
                 readPaymentMethods();
                 alert('Payment method deleted!');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Failed to delete payment method:', error);
+            }
         }
     }
 
@@ -123,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Highlight active page
     const navLinks = document.querySelectorAll('ul a');
-    const currentPage = window.location.pathname.split('/').pop() || 'payment-method';
+    const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'payment-method';
     navLinks.forEach(link => {
         if (link.getAttribute('href').includes(currentPage)) {
             link.classList.add('bg-gray-700');

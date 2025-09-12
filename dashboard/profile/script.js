@@ -5,15 +5,16 @@ async function apiRequest(url, method, data = null) {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
         };
-        if (data) {
-            options.body = JSON.stringify(data);
-        }
+        if (data) options.body = JSON.stringify(data);
         const response = await fetch(url, options);
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorText || 'Unknown'}`);
+        }
         return await response.json();
     } catch (error) {
         console.error('API request error:', error);
-        alert(`Error: ${error.message}`);
+        alert(`API Error: ${error.message}`);
         throw error;
     }
 }
@@ -35,7 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('email').textContent = data.email || 'N/A';
             document.getElementById('dob').textContent = data.dob ? new Date(data.dob).toLocaleDateString() : 'N/A';
             profilePic.src = data.profilePic || 'https://via.placeholder.com/150';
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to load profile:', error);
+        }
     }
 
     // Edit profile
@@ -45,7 +48,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('editName').value = data.name || '';
             document.getElementById('editDob').value = data.dob || '';
             editModal.classList.remove('hidden');
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to load profile for edit:', error);
+        }
     });
 
     saveProfileBtn.addEventListener('click', async () => {
@@ -57,7 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 readProfile();
                 editModal.classList.add('hidden');
                 alert('Profile updated!');
-            } catch (error) {}
+            } catch (error) {
+                console.error('Failed to save profile:', error);
+            }
         } else {
             alert('Please enter a name.');
         }
@@ -81,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 uploadModal.classList.add('hidden');
                 alert('Profile picture uploaded!');
             } catch (error) {
+                console.error('Failed to upload profile picture:', error);
                 alert(`Error: ${error.message}`);
             }
         } else {
@@ -107,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Highlight active page
     const navLinks = document.querySelectorAll('ul a');
-    const currentPage = window.location.pathname.split('/').pop() || 'profile';
+    const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'profile';
     navLinks.forEach(link => {
         if (link.getAttribute('href').includes(currentPage)) {
             link.classList.add('bg-gray-700');
