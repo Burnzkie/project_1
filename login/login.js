@@ -190,8 +190,8 @@ loginBtn.addEventListener('click', async (e) => {
     });
 
     const data = await response.json();
-    if (response.ok) {
-      window.location.href = '/dashboard/index.html'; // Direct redirect to dashboard
+    if (response.ok && data.redirect) {
+      window.location.href = data.redirect; // Use server's redirect path (e.g., '/dashboard/')
     } else {
       alert(data.error || 'Login failed. Please try again.');
     }
@@ -234,10 +234,15 @@ signupBtn.addEventListener('click', async (e) => {
 
     const data = await response.json();
     if (response.ok) {
-      signupForm.reset();
-      signupForm.style.display = 'none';
-      loginForm.style.display = 'block';
-      alert('Signup successful! Please log in.');
+      if (data.redirect) {
+        window.location.href = data.redirect; // Use server's redirect if provided (e.g., '/login/Login.html')
+      } else {
+        // Fallback: Switch to login form and alert
+        signupForm.reset();
+        signupForm.style.display = 'none';
+        loginForm.style.display = 'block';
+        alert('Signup successful! Please log in.');
+      }
     } else {
       alert(data.error || 'Registration failed. Please try again.');
     }

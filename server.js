@@ -14,12 +14,13 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const port = 3000;
 
-// MySQL database connection
+// MySQL database connection with pool limit
 const db = mysql.createPool({
     host: 'localhost',
     user: 'root',
-    password: '',
-    database: 'shadow_1'
+    password: '09123456',
+    database: 'shadow_1',
+    connectionLimit: 10  // Prevent pool exhaustion
 });
 
 // Middleware
@@ -27,12 +28,13 @@ app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/dashboard', express.static(path.join(__dirname, 'dashboard'))); // Serve dashboard static files
 app.use('/uploads', express.static(path.join(__dirname, 'Uploads'))); // Serve uploaded files
 app.use('/login', express.static(path.join(__dirname, 'login'))); // Serve login static files
 
-// Session middleware with MySQL store
-const sessionStore = new MySQLStore({}, db);
+// Session middleware with MySQL store (auto-create table)
+const sessionStore = new MySQLStore({
+    createDatabaseTable: true  // Auto-create 'sessions' table if missing
+}, db);
 sessionStore.on('error', (error) => {
     console.error('Session store error:', error);
 });
@@ -59,7 +61,7 @@ function isAuthenticated(req, res, next) {
     res.status(401).json({ error: 'Unauthorized' });
 }
 
-// Audit logging middleware
+// Audit logging middleware (non-blocking)
 app.use(async (req, res, next) => {
     if (req.session.user && ['POST', 'PUT', 'DELETE'].includes(req.method)) {
         const username = req.session.user.username;
@@ -68,7 +70,7 @@ app.use(async (req, res, next) => {
         try {
             await db.query('INSERT INTO audit_logs (action, userName, timestamp, details) VALUES (?, ?, NOW(), ?)', [action, username, details]);
         } catch (error) {
-            console.error('Error logging action:', error);
+            console.error('Audit log error:', error.code, error.message);  // Enhanced logging
         }
     }
     next();
@@ -85,33 +87,42 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'login', 'Login.html'));
 });
 
-// Protect dashboard routes with dynamic path handling
-app.get('/dashboard/:path?', isAuthenticated, (req, res) => {
-    const requestedPath = req.params.path || ''; // Empty for root, subfolder name otherwise
-    let filePath;
-
-    if (!requestedPath) {
-        // Serve the root dashboard/index.html
-        filePath = path.join(__dirname, 'dashboard', 'index.html');
-    } else {
-        // Serve the index.html inside the subfolder (e.g., dashboard/account-setting/index.html)
-        filePath = path.join(__dirname, 'dashboard', requestedPath, 'index.html');
-    }
-
+// Serve exact /dashboard (root dashboard)
+app.get('/dashboard', isAuthenticated, (req, res) => {
+    const filePath = path.join(__dirname, 'dashboard', 'index.html');
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-
+    
     fs.access(filePath, fs.constants.F_OK, (err) => {
         if (err) {
             console.error(`File not found: ${filePath}`, err);
-            res.status(404).send('Page not found');
-        } else {
-            res.sendFile(filePath, (sendErr) => {
-                if (sendErr) {
-                    console.error(`Error sending file: ${filePath}`, sendErr);
-                    res.status(500).send('Internal server error');
-                }
-            });
+            return res.status(404).send('Dashboard not found');
         }
+        res.sendFile(filePath, (sendErr) => {
+            if (sendErr) {
+                console.error(`Error sending file: ${filePath}`, sendErr);
+                return res.status(500).send('Internal server error');
+            }
+        });
+    });
+});
+
+// Serve /dashboard/* (subpaths, e.g., /dashboard/account-setting)
+app.get('/dashboard/:subpath(*)', isAuthenticated, (req, res) => {
+    const requestedPath = req.params.subpath; // Captures everything after /dashboard/, e.g., 'account-setting'
+    const filePath = path.join(__dirname, 'dashboard', requestedPath, 'index.html');
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    
+    fs.access(filePath, fs.constants.F_OK, (err) => {
+        if (err) {
+            console.error(`File not found: ${filePath}`, err);
+            return res.status(404).send('Page not found');
+        }
+        res.sendFile(filePath, (sendErr) => {
+            if (sendErr) {
+                console.error(`Error sending file: ${filePath}`, sendErr);
+                return res.status(500).send('Internal server error');
+            }
+        });
     });
 });
 
@@ -147,7 +158,7 @@ app.get('/api/profile', isAuthenticated, async (req, res) => {
         }
         res.json(results[0]);
     } catch (error) {
-        console.error('Error fetching profile data:', error);
+        console.error('Error fetching profile data:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -162,7 +173,7 @@ app.put('/api/profile', isAuthenticated, async (req, res) => {
         await db.query('UPDATE user_info SET firstname = ?, dob = ? WHERE username = ?', [name, dob || null, username]);
         res.json({ message: 'Profile updated successfully' });
     } catch (error) {
-        console.error('Error updating profile:', error);
+        console.error('Error updating profile:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -195,7 +206,7 @@ app.post('/api/profile/upload', isAuthenticated, (req, res, next) => {
         await db.query('UPDATE user_info SET profile_picture = ? WHERE username = ?', [profilePicturePath, username]);
         res.json({ message: 'Profile picture uploaded successfully', path: profilePicturePath });
     } catch (error) {
-        console.error('Error uploading profile picture:', error);
+        console.error('Error uploading profile picture:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -210,7 +221,7 @@ app.get('/api/account', isAuthenticated, async (req, res) => {
         }
         res.json(results[0]);
     } catch (error) {
-        console.error('Error fetching account data:', error);
+        console.error('Error fetching account data:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -230,7 +241,7 @@ app.put('/api/account', isAuthenticated, async (req, res) => {
         req.session.user.username = newUsername; // Update session with new username
         res.json({ message: 'Account updated successfully' });
     } catch (error) {
-        console.error('Error updating account:', error);
+        console.error('Error updating account:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -255,7 +266,7 @@ app.delete('/api/account', isAuthenticated, async (req, res) => {
             res.json({ message: 'Account deactivated successfully' });
         });
     } catch (error) {
-        console.error('Error deactivating account:', error);
+        console.error('Error deactivating account:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -273,7 +284,7 @@ app.get('/api/audit-log', isAuthenticated, async (req, res) => {
         const [results] = await db.query(query, params);
         res.json(results);
     } catch (error) {
-        console.error('Error fetching audit logs:', error);
+        console.error('Error fetching audit logs:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -287,7 +298,7 @@ app.get('/api/audit-log/:id', isAuthenticated, async (req, res) => {
         }
         res.json(results[0]);
     } catch (error) {
-        console.error('Error fetching audit log:', error);
+        console.error('Error fetching audit log:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -301,7 +312,7 @@ app.put('/api/audit-log/:id', isAuthenticated, async (req, res) => {
         await db.query('UPDATE audit_logs SET action = ?, userName = ?, details = ? WHERE id = ?', [action, user, details || '', id]);
         res.json({ message: 'Log updated' });
     } catch (error) {
-        console.error('Error updating audit log:', error);
+        console.error('Error updating audit log:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -312,7 +323,7 @@ app.delete('/api/audit-log/:id', isAuthenticated, async (req, res) => {
         await db.query('UPDATE audit_logs SET isArchived = true WHERE id = ?', [id]);
         res.json({ message: 'Log archived' });
     } catch (error) {
-        console.error('Error archiving audit log:', error);
+        console.error('Error archiving audit log:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -323,7 +334,7 @@ app.get('/api/payment-method', isAuthenticated, async (req, res) => {
         const [results] = await db.query('SELECT id, name, description FROM payment_methods');
         res.json(results);
     } catch (error) {
-        console.error('Error fetching payment methods:', error);
+        console.error('Error fetching payment methods:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -336,7 +347,7 @@ app.post('/api/payment-method', isAuthenticated, async (req, res) => {
         await db.query('INSERT INTO payment_methods (name, description) VALUES (?, ?)', [name, description || '']);
         res.json({ message: 'Payment method added' });
     } catch (error) {
-        console.error('Error adding payment method:', error);
+        console.error('Error adding payment method:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -350,7 +361,7 @@ app.get('/api/payment-method/:id', isAuthenticated, async (req, res) => {
         }
         res.json(results[0]);
     } catch (error) {
-        console.error('Error fetching payment method:', error);
+        console.error('Error fetching payment method:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -364,7 +375,7 @@ app.put('/api/payment-method/:id', isAuthenticated, async (req, res) => {
         await db.query('UPDATE payment_methods SET name = ?, description = ? WHERE id = ?', [name, description || '', id]);
         res.json({ message: 'Payment method updated' });
     } catch (error) {
-        console.error('Error updating payment method:', error);
+        console.error('Error updating payment method:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -375,7 +386,7 @@ app.delete('/api/payment-method/:id', isAuthenticated, async (req, res) => {
         await db.query('DELETE FROM payment_methods WHERE id = ?', [id]);
         res.json({ message: 'Payment method deleted' });
     } catch (error) {
-        console.error('Error deleting payment method:', error);
+        console.error('Error deleting payment method:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -386,7 +397,7 @@ app.get('/api/payment-plan', isAuthenticated, async (req, res) => {
         const [results] = await db.query('SELECT id, name, amount, schedule FROM payment_plans');
         res.json(results);
     } catch (error) {
-        console.error('Error fetching payment plans:', error);
+        console.error('Error fetching payment plans:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -399,7 +410,7 @@ app.post('/api/payment-plan', isAuthenticated, async (req, res) => {
         await db.query('INSERT INTO payment_plans (name, amount, schedule) VALUES (?, ?, ?)', [name, amount, schedule]);
         res.json({ message: 'Payment plan added' });
     } catch (error) {
-        console.error('Error adding payment plan:', error);
+        console.error('Error adding payment plan:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -413,7 +424,7 @@ app.get('/api/payment-plan/:id', isAuthenticated, async (req, res) => {
         }
         res.json(results[0]);
     } catch (error) {
-        console.error('Error fetching payment plan:', error);
+        console.error('Error fetching payment plan:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -427,7 +438,7 @@ app.put('/api/payment-plan/:id', isAuthenticated, async (req, res) => {
         await db.query('UPDATE payment_plans SET name = ?, amount = ?, schedule = ? WHERE id = ?', [name, amount, schedule, id]);
         res.json({ message: 'Payment plan updated' });
     } catch (error) {
-        console.error('Error updating payment plan:', error);
+        console.error('Error updating payment plan:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -438,7 +449,7 @@ app.delete('/api/payment-plan/:id', isAuthenticated, async (req, res) => {
         await db.query('DELETE FROM payment_plans WHERE id = ?', [id]);
         res.json({ message: 'Payment plan deleted' });
     } catch (error) {
-        console.error('Error deleting payment plan:', error);
+        console.error('Error deleting payment plan:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -449,7 +460,7 @@ app.get('/api/request-refund', isAuthenticated, async (req, res) => {
         const [results] = await db.query('SELECT id, paymentId, amount, description, status FROM refunds');
         res.json(results);
     } catch (error) {
-        console.error('Error fetching refunds:', error);
+        console.error('Error fetching refunds:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -462,7 +473,7 @@ app.post('/api/request-refund', isAuthenticated, async (req, res) => {
         await db.query('INSERT INTO refunds (paymentId, amount, description, status) VALUES (?, ?, ?, ?)', [paymentId, amount, description || '', status || 'Pending']);
         res.json({ message: 'Refund requested' });
     } catch (error) {
-        console.error('Error adding refund:', error);
+        console.error('Error adding refund:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -476,7 +487,7 @@ app.get('/api/request-refund/:id', isAuthenticated, async (req, res) => {
         }
         res.json(results[0]);
     } catch (error) {
-        console.error('Error fetching refund:', error);
+        console.error('Error fetching refund:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -490,7 +501,7 @@ app.put('/api/request-refund/:id', isAuthenticated, async (req, res) => {
         await db.query('UPDATE refunds SET paymentId = ?, amount = ?, description = ?, status = ? WHERE id = ?', [paymentId, amount, description || '', status || 'Pending', id]);
         res.json({ message: 'Refund updated' });
     } catch (error) {
-        console.error('Error updating refund:', error);
+        console.error('Error updating refund:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -501,18 +512,28 @@ app.delete('/api/request-refund/:id', isAuthenticated, async (req, res) => {
         await db.query('DELETE FROM refunds WHERE id = ?', [id]);
         res.json({ message: 'Refund deleted' });
     } catch (error) {
-        console.error('Error deleting refund:', error);
+        console.error('Error deleting refund:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
 // API endpoints for student
+app.get('/api/student-list', isAuthenticated, async (req, res) => {
+    try {
+        const [results] = await db.query('SELECT id, name, program, year_level, date, email, contact FROM students');
+        res.json(results);
+    } catch (error) {
+        console.error('Error fetching student list:', error.code, error.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 app.get('/api/student', isAuthenticated, async (req, res) => {
     try {
         const [results] = await db.query('SELECT id, name, program, year_level, date, email, contact FROM students');
         res.json(results);
     } catch (error) {
-        console.error('Error fetching students:', error);
+        console.error('Error fetching students:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -523,9 +544,10 @@ app.post('/api/student', isAuthenticated, async (req, res) => {
     if (!name || !program || !year_level || !date || !email || !contact) return res.status(400).json({ error: 'All fields are required' });
     try {
         const [result] = await db.query('INSERT INTO students (name, program, year_level, date, email, contact) VALUES (?, ?, ?, ?, ?, ?)', [name, program, year_level, date, email, contact]);
+        console.log('Student inserted with ID:', result.insertId);  // Log success
         res.json({ message: 'Student added', id: result.insertId });
     } catch (error) {
-        console.error('Error adding student:', error);
+        console.error('Error adding student:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -539,7 +561,7 @@ app.get('/api/student/:id', isAuthenticated, async (req, res) => {
         }
         res.json(results[0]);
     } catch (error) {
-        console.error('Error fetching student:', error);
+        console.error('Error fetching student:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -553,7 +575,7 @@ app.put('/api/student/:id', isAuthenticated, async (req, res) => {
         await db.query('UPDATE students SET name = ?, program = ?, year_level = ?, date = ?, email = ?, contact = ? WHERE id = ?', [name, program, year_level, date, email, contact, id]);
         res.json({ message: 'Student updated' });
     } catch (error) {
-        console.error('Error updating student:', error);
+        console.error('Error updating student:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -564,7 +586,7 @@ app.delete('/api/student/:id', isAuthenticated, async (req, res) => {
         await db.query('DELETE FROM students WHERE id = ?', [id]);
         res.json({ message: 'Student deleted' });
     } catch (error) {
-        console.error('Error deleting student:', error);
+        console.error('Error deleting student:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -575,7 +597,7 @@ app.get('/api/student-payment', isAuthenticated, async (req, res) => {
         const [results] = await db.query('SELECT id, studentId, studentName, amount, description FROM student_payments');
         res.json(results);
     } catch (error) {
-        console.error('Error fetching student payments:', error);
+        console.error('Error fetching student payments:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -586,9 +608,10 @@ app.post('/api/student-payment', isAuthenticated, async (req, res) => {
     if (!studentId || !studentName || !amount) return res.status(400).json({ error: 'Student ID, name, and amount are required' });
     try {
         const [result] = await db.query('INSERT INTO student_payments (studentId, studentName, amount, description) VALUES (?, ?, ?, ?)', [studentId, studentName, amount, description || '']);
+        console.log('Payment inserted with ID:', result.insertId);  // Log success
         res.json({ message: 'Payment added', id: result.insertId });
     } catch (error) {
-        console.error('Error adding student payment:', error);
+        console.error('Error adding student payment:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -602,7 +625,7 @@ app.get('/api/student-payment/:id', isAuthenticated, async (req, res) => {
         }
         res.json(results[0]);
     } catch (error) {
-        console.error('Error fetching student payment:', error);
+        console.error('Error fetching student payment:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -616,7 +639,7 @@ app.put('/api/student-payment/:id', isAuthenticated, async (req, res) => {
         await db.query('UPDATE student_payments SET studentId = ?, studentName = ?, amount = ?, description = ? WHERE id = ?', [studentId, studentName, amount, description || '', id]);
         res.json({ message: 'Payment updated' });
     } catch (error) {
-        console.error('Error updating student payment:', error);
+        console.error('Error updating student payment:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -627,7 +650,7 @@ app.delete('/api/student-payment/:id', isAuthenticated, async (req, res) => {
         await db.query('DELETE FROM student_payments WHERE id = ?', [id]);
         res.json({ message: 'Payment deleted' });
     } catch (error) {
-        console.error('Error deleting student payment:', error);
+        console.error('Error deleting student payment:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -640,7 +663,7 @@ app.post('/api/student-payment/refund', isAuthenticated, async (req, res) => {
         await db.query('INSERT INTO refunds (paymentId, amount, description, status) VALUES (?, ?, ?, ?)', [studentId, amount, description || '', 'Pending']);
         res.json({ message: 'Refund requested' });
     } catch (error) {
-        console.error('Error requesting refund:', error);
+        console.error('Error requesting refund:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -651,7 +674,7 @@ app.get('/api/tuition-fee', isAuthenticated, async (req, res) => {
         const [results] = await db.query('SELECT id, type, amount FROM tuition_fees');
         res.json(results);
     } catch (error) {
-        console.error('Error fetching tuition fees:', error);
+        console.error('Error fetching tuition fees:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -662,9 +685,10 @@ app.post('/api/tuition-fee', isAuthenticated, async (req, res) => {
     if (!type || !amount) return res.status(400).json({ error: 'Type and amount are required' });
     try {
         const [result] = await db.query('INSERT INTO tuition_fees (type, amount) VALUES (?, ?)', [type, amount]);
+        console.log('Tuition fee inserted with ID:', result.insertId);  // Log success
         res.json({ message: 'Tuition fee added', id: result.insertId });
     } catch (error) {
-        console.error('Error adding tuition fee:', error);
+        console.error('Error adding tuition fee:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -678,7 +702,7 @@ app.get('/api/tuition-fee/:id', isAuthenticated, async (req, res) => {
         }
         res.json(results[0]);
     } catch (error) {
-        console.error('Error fetching tuition fee:', error);
+        console.error('Error fetching tuition fee:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -692,7 +716,7 @@ app.put('/api/tuition-fee/:id', isAuthenticated, async (req, res) => {
         await db.query('UPDATE tuition_fees SET type = ?, amount = ? WHERE id = ?', [type, amount, id]);
         res.json({ message: 'Tuition fee updated' });
     } catch (error) {
-        console.error('Error updating tuition fee:', error);
+        console.error('Error updating tuition fee:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -703,7 +727,7 @@ app.delete('/api/tuition-fee/:id', isAuthenticated, async (req, res) => {
         await db.query('DELETE FROM tuition_fees WHERE id = ?', [id]);
         res.json({ message: 'Tuition fee deleted' });
     } catch (error) {
-        console.error('Error deleting tuition fee:', error);
+        console.error('Error deleting tuition fee:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -714,7 +738,7 @@ app.get('/test-db', async (req, res) => {
         await db.query('SELECT 1');
         res.send('Database connection successful');
     } catch (error) {
-        console.error('Database test error:', error);
+        console.error('Database test error:', error.code, error.message);
         res.status(500).send(`Database connection failed: ${error.message}`);
     }
 });
@@ -750,10 +774,11 @@ app.post('/signup', async (req, res) => {
             INSERT INTO user_info (firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, password, role)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        await db.query(query, [firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, hashedPassword, role]);
+        const [result] = await db.query(query, [firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, hashedPassword, role]);
+        console.log('User signed up with ID:', result.insertId);  // Log success
         res.json({ redirect: '/login/Login.html' });
     } catch (error) {
-        console.error('Error during signup:', error);
+        console.error('Error during signup:', error.code, error.message);
         if (error.code === 'ER_DUP_ENTRY') {
             return res.status(400).json({ error: 'Email or username already exists.' });
         }
@@ -782,12 +807,13 @@ app.post('/login', async (req, res) => {
         const match = await bcrypt.compare(password, user.password);
         if (match) {
             req.session.user = { username: user.username, role: user.role }; // Include role in session
-            res.json({ redirect: '/dashboard/' }); // Redirect to dashboard root
+            console.log('User logged in:', username);  // Log success
+            res.json({ redirect: '/dashboard' }); // Redirect to dashboard root
         } else {
             res.status(401).json({ error: 'Invalid username or password.' });
         }
     } catch (error) {
-        console.error('Error during login:', error);
+        console.error('Error during login:', error.code, error.message);
         if (error.code === 'ER_NO_SUCH_TABLE') {
             return res.status(500).json({ error: 'Database table "user_info" does not exist.' });
         }
