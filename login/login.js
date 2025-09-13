@@ -220,7 +220,7 @@ signupBtn.addEventListener('click', async (e) => {
     brgy: document.querySelector('#brgy').value,
     street: document.querySelector('#street').value,
     role: document.querySelector('#role').value,
-    dob: document.querySelector('#dob').value,
+    dob: document.querySelector('#dob').value,  // Added dob to match server
     username: document.querySelector('#signupUsername').value,
     password: document.querySelector('#signupPassword').value
   };
@@ -234,15 +234,10 @@ signupBtn.addEventListener('click', async (e) => {
 
     const data = await response.json();
     if (response.ok) {
-      if (data.redirect) {
-        window.location.href = data.redirect; // Use server's redirect if provided (e.g., '/login/Login.html')
-      } else {
-        // Fallback: Switch to login form and alert
-        signupForm.reset();
-        signupForm.style.display = 'none';
-        loginForm.style.display = 'block';
-        alert('Signup successful! Please log in.');
-      }
+      signupForm.reset();
+      signupForm.style.display = 'none';
+      loginForm.style.display = 'block';
+      alert('Signup successful! Please log in.');  // Handle success without relying on redirect
     } else {
       alert(data.error || 'Registration failed. Please try again.');
     }

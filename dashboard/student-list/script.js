@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fetch and display students
     async function readStudents() {
         try {
-            const data = await apiRequest('/api/student-list', 'GET');
+            const data = await apiRequest('/api/student', 'GET');
             studentTable.innerHTML = '';
             data.forEach(student => {
                 const row = document.createElement('tr');
@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (name && program && year_level && email) {
             try {
                 const method = id ? 'PUT' : 'POST';
-                const url = id ? `/api/student-list/${id}` : '/api/student-list';
+                const url = id ? `/api/student/${id}` : '/api/student-list';
                 await apiRequest(url, method, { name, program, year_level, date, email, contact });
                 readStudents();
                 modal.classList.add('hidden');
@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Edit student
     async function editStudent(id) {
         try {
-            const data = await apiRequest(`/api/student-list/${id}`, 'GET');
+            const data = await apiRequest(`/api/student/${id}`, 'GET');
             showModal('Edit Student', `
                 <input type="hidden" id="studentId" value="${data.id}">
                 <input type="text" id="studentName" value="${data.name || ''}" placeholder="Name" class="border p-2 w-full mb-2">
@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function deleteStudent(id) {
         if (confirm('Are you sure you want to delete this student?')) {
             try {
-                await apiRequest(`/api/student-list/${id}`, 'DELETE');
+                await apiRequest(`/api/student/${id}`, 'DELETE');
                 readStudents();
                 alert('Student deleted!');
             } catch (error) {

@@ -29,7 +29,10 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'Uploads'))); // Serve uploaded files
-app.use('/login', express.static(path.join(__dirname, 'login'))); // Serve login static files
+app.use('/login', express.static(path.join(__dirname, 'login'))); // Serve login static files (styles.css, script.js, Login.js)
+
+// NEW: Serve dashboard static assets (CSS/JS for root and subfolders)
+app.use('/dashboard', express.static(path.join(__dirname, 'dashboard'))); // e.g., /dashboard/styles.css → dashboard/styles.css
 
 // Session middleware with MySQL store (auto-create table)
 const sessionStore = new MySQLStore({
@@ -82,12 +85,17 @@ if (!fs.existsSync('Uploads')) {
     fs.chmodSync('Uploads', '755');
 }
 
-// Serve login page
+// Serve login page (root redirects to Login.html)
 app.get('/', (req, res) => {
+    res.redirect('/login/Login.html');
+});
+
+// Serve /login/Login.html explicitly (for logout redirect)
+app.get('/login/Login.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'login', 'Login.html'));
 });
 
-// Serve exact /dashboard (root dashboard)
+// Serve exact /dashboard (root dashboard) → dashboard/index.html
 app.get('/dashboard', isAuthenticated, (req, res) => {
     const filePath = path.join(__dirname, 'dashboard', 'index.html');
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -106,9 +114,10 @@ app.get('/dashboard', isAuthenticated, (req, res) => {
     });
 });
 
-// Serve /dashboard/* (subpaths, e.g., /dashboard/account-setting)
-app.get('/dashboard/:subpath(*)', isAuthenticated, (req, res) => {
-    const requestedPath = req.params.subpath; // Captures everything after /dashboard/, e.g., 'account-setting'
+// Serve /dashboard/* (subpaths, e.g., /dashboard/student-list) → dashboard/[subfolder]/index.html – FIXED WILDCARD + ARRAY PARAM
+app.get('/dashboard/*path', isAuthenticated, (req, res) => {
+    // Fix: Join array segments into a single path string
+    const requestedPath = Array.isArray(req.params.path) ? req.params.path.join('/') : (req.params.path || '');
     const filePath = path.join(__dirname, 'dashboard', requestedPath, 'index.html');
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     
@@ -148,13 +157,17 @@ const upload = multer({
     limits: { fileSize: 1024 * 1024 * 5 } // 5MB limit
 });
 
-// API endpoint to get profile data
+// API endpoint to get profile data (frontend expects profilePic as full URL if exists)
 app.get('/api/profile', isAuthenticated, async (req, res) => {
     const username = req.session.user.username;
     try {
         const [results] = await db.query('SELECT firstname AS name, role, email, dob, profile_picture AS profilePic FROM user_info WHERE username = ?', [username]);
         if (results.length === 0) {
             return res.status(404).json({ error: 'User not found' });
+        }
+        // Ensure profilePic is a full URL or null
+        if (results[0].profilePic) {
+            results[0].profilePic = `http://localhost:3000${results[0].profilePic}`;
         }
         res.json(results[0]);
     } catch (error) {
@@ -204,14 +217,14 @@ app.post('/api/profile/upload', isAuthenticated, (req, res, next) => {
             }
         }
         await db.query('UPDATE user_info SET profile_picture = ? WHERE username = ?', [profilePicturePath, username]);
-        res.json({ message: 'Profile picture uploaded successfully', path: profilePicturePath });
+        res.json({ message: 'Profile picture uploaded successfully', path: `http://localhost:3000${profilePicturePath}` });
     } catch (error) {
         console.error('Error uploading profile picture:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
-// API endpoint to get account data
+// API endpoints for account (used in account-setting)
 app.get('/api/account', isAuthenticated, async (req, res) => {
     const username = req.session.user.username;
     try {
@@ -226,7 +239,6 @@ app.get('/api/account', isAuthenticated, async (req, res) => {
     }
 });
 
-// API endpoint to update account
 app.put('/api/account', isAuthenticated, async (req, res) => {
     console.log('Update account request body:', req.body);
     const { username: newUsername, email } = req.body;
@@ -238,7 +250,7 @@ app.put('/api/account', isAuthenticated, async (req, res) => {
             return res.status(400).json({ error: 'Username already exists' });
         }
         await db.query('UPDATE user_info SET username = ?, email = ? WHERE username = ?', [newUsername, email, currentUsername]);
-        req.session.user.username = newUsername; // Update session with new username
+        req.session.user.username = newUsername; // Update session
         res.json({ message: 'Account updated successfully' });
     } catch (error) {
         console.error('Error updating account:', error.code, error.message);
@@ -246,7 +258,6 @@ app.put('/api/account', isAuthenticated, async (req, res) => {
     }
 });
 
-// API endpoint to deactivate account
 app.delete('/api/account', isAuthenticated, async (req, res) => {
     const username = req.session.user.username;
     try {
@@ -271,7 +282,7 @@ app.delete('/api/account', isAuthenticated, async (req, res) => {
     }
 });
 
-// API endpoints for audit-log
+// API endpoints for audit-log (supports filter query param)
 app.get('/api/audit-log', isAuthenticated, async (req, res) => {
     const filter = req.query.filter;
     let query = 'SELECT id, action, userName AS user, timestamp, details FROM audit_logs WHERE isArchived = false';
@@ -280,6 +291,7 @@ app.get('/api/audit-log', isAuthenticated, async (req, res) => {
         query += ' AND (action LIKE ? OR userName LIKE ?)';
         params.push(`%${filter}%`, `%${filter}%`);
     }
+    query += ' ORDER BY timestamp DESC'; // Added: Frontend expects recent first
     try {
         const [results] = await db.query(query, params);
         res.json(results);
@@ -331,7 +343,7 @@ app.delete('/api/audit-log/:id', isAuthenticated, async (req, res) => {
 // API endpoints for payment-method
 app.get('/api/payment-method', isAuthenticated, async (req, res) => {
     try {
-        const [results] = await db.query('SELECT id, name, description FROM payment_methods');
+        const [results] = await db.query('SELECT id, name, description FROM payment_methods ORDER BY name');
         res.json(results);
     } catch (error) {
         console.error('Error fetching payment methods:', error.code, error.message);
@@ -344,8 +356,8 @@ app.post('/api/payment-method', isAuthenticated, async (req, res) => {
     const { name, description } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
     try {
-        await db.query('INSERT INTO payment_methods (name, description) VALUES (?, ?)', [name, description || '']);
-        res.json({ message: 'Payment method added' });
+        const [result] = await db.query('INSERT INTO payment_methods (name, description) VALUES (?, ?)', [name, description || '']);
+        res.json({ message: 'Payment method added', id: result.insertId });
     } catch (error) {
         console.error('Error adding payment method:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
@@ -394,7 +406,7 @@ app.delete('/api/payment-method/:id', isAuthenticated, async (req, res) => {
 // API endpoints for payment-plan
 app.get('/api/payment-plan', isAuthenticated, async (req, res) => {
     try {
-        const [results] = await db.query('SELECT id, name, amount, schedule FROM payment_plans');
+        const [results] = await db.query('SELECT id, name, amount, schedule FROM payment_plans ORDER BY name');
         res.json(results);
     } catch (error) {
         console.error('Error fetching payment plans:', error.code, error.message);
@@ -407,8 +419,8 @@ app.post('/api/payment-plan', isAuthenticated, async (req, res) => {
     const { name, amount, schedule } = req.body;
     if (!name || !amount || !schedule) return res.status(400).json({ error: 'Name, amount, and schedule are required' });
     try {
-        await db.query('INSERT INTO payment_plans (name, amount, schedule) VALUES (?, ?, ?)', [name, amount, schedule]);
-        res.json({ message: 'Payment plan added' });
+        const [result] = await db.query('INSERT INTO payment_plans (name, amount, schedule) VALUES (?, ?, ?)', [name, amount, schedule]);
+        res.json({ message: 'Payment plan added', id: result.insertId });
     } catch (error) {
         console.error('Error adding payment plan:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
@@ -454,10 +466,10 @@ app.delete('/api/payment-plan/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-// API endpoints for refund-request
+// API endpoints for request-refund
 app.get('/api/request-refund', isAuthenticated, async (req, res) => {
     try {
-        const [results] = await db.query('SELECT id, paymentId, amount, description, status FROM refunds');
+        const [results] = await db.query('SELECT id, paymentId, amount, description, status FROM refunds ORDER BY id DESC');
         res.json(results);
     } catch (error) {
         console.error('Error fetching refunds:', error.code, error.message);
@@ -470,8 +482,8 @@ app.post('/api/request-refund', isAuthenticated, async (req, res) => {
     const { paymentId, amount, description, status } = req.body;
     if (!paymentId || !amount) return res.status(400).json({ error: 'Payment ID and amount are required' });
     try {
-        await db.query('INSERT INTO refunds (paymentId, amount, description, status) VALUES (?, ?, ?, ?)', [paymentId, amount, description || '', status || 'Pending']);
-        res.json({ message: 'Refund requested' });
+        const [result] = await db.query('INSERT INTO refunds (paymentId, amount, description, status) VALUES (?, ?, ?, ?)', [paymentId, amount, description || '', status || 'Pending']);
+        res.json({ message: 'Refund requested', id: result.insertId });
     } catch (error) {
         console.error('Error adding refund:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
@@ -517,20 +529,10 @@ app.delete('/api/request-refund/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-// API endpoints for student
-app.get('/api/student-list', isAuthenticated, async (req, res) => {
-    try {
-        const [results] = await db.query('SELECT id, name, program, year_level, date, email, contact FROM students');
-        res.json(results);
-    } catch (error) {
-        console.error('Error fetching student list:', error.code, error.message);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
+// API endpoints for students (aligned with frontend: /api/student for all operations)
 app.get('/api/student', isAuthenticated, async (req, res) => {
     try {
-        const [results] = await db.query('SELECT id, name, program, year_level, date, email, contact FROM students');
+        const [results] = await db.query('SELECT id, name, program, year_level, date, email, contact FROM students ORDER BY name');
         res.json(results);
     } catch (error) {
         console.error('Error fetching students:', error.code, error.message);
@@ -544,7 +546,6 @@ app.post('/api/student', isAuthenticated, async (req, res) => {
     if (!name || !program || !year_level || !date || !email || !contact) return res.status(400).json({ error: 'All fields are required' });
     try {
         const [result] = await db.query('INSERT INTO students (name, program, year_level, date, email, contact) VALUES (?, ?, ?, ?, ?, ?)', [name, program, year_level, date, email, contact]);
-        console.log('Student inserted with ID:', result.insertId);  // Log success
         res.json({ message: 'Student added', id: result.insertId });
     } catch (error) {
         console.error('Error adding student:', error.code, error.message);
@@ -594,7 +595,7 @@ app.delete('/api/student/:id', isAuthenticated, async (req, res) => {
 // API endpoints for student-payment
 app.get('/api/student-payment', isAuthenticated, async (req, res) => {
     try {
-        const [results] = await db.query('SELECT id, studentId, studentName, amount, description FROM student_payments');
+        const [results] = await db.query('SELECT id, studentId, studentName, amount, description FROM student_payments ORDER BY id DESC');
         res.json(results);
     } catch (error) {
         console.error('Error fetching student payments:', error.code, error.message);
@@ -608,7 +609,6 @@ app.post('/api/student-payment', isAuthenticated, async (req, res) => {
     if (!studentId || !studentName || !amount) return res.status(400).json({ error: 'Student ID, name, and amount are required' });
     try {
         const [result] = await db.query('INSERT INTO student_payments (studentId, studentName, amount, description) VALUES (?, ?, ?, ?)', [studentId, studentName, amount, description || '']);
-        console.log('Payment inserted with ID:', result.insertId);  // Log success
         res.json({ message: 'Payment added', id: result.insertId });
     } catch (error) {
         console.error('Error adding student payment:', error.code, error.message);
@@ -657,11 +657,11 @@ app.delete('/api/student-payment/:id', isAuthenticated, async (req, res) => {
 
 app.post('/api/student-payment/refund', isAuthenticated, async (req, res) => {
     console.log('Add student payment refund request body:', req.body);
-    const { studentId, studentName, amount, description } = req.body;
+    const { studentId, amount, description } = req.body;
     if (!studentId || !amount) return res.status(400).json({ error: 'Student ID and amount are required' });
     try {
-        await db.query('INSERT INTO refunds (paymentId, amount, description, status) VALUES (?, ?, ?, ?)', [studentId, amount, description || '', 'Pending']);
-        res.json({ message: 'Refund requested' });
+        const [result] = await db.query('INSERT INTO refunds (paymentId, amount, description, status) VALUES (?, ?, ?, ?)', [studentId, amount, description || '', 'Pending']);
+        res.json({ message: 'Refund requested', id: result.insertId });
     } catch (error) {
         console.error('Error requesting refund:', error.code, error.message);
         res.status(500).json({ error: 'Server error' });
@@ -671,7 +671,7 @@ app.post('/api/student-payment/refund', isAuthenticated, async (req, res) => {
 // API endpoints for tuition-fee
 app.get('/api/tuition-fee', isAuthenticated, async (req, res) => {
     try {
-        const [results] = await db.query('SELECT id, type, amount FROM tuition_fees');
+        const [results] = await db.query('SELECT id, type, amount FROM tuition_fees ORDER BY type');
         res.json(results);
     } catch (error) {
         console.error('Error fetching tuition fees:', error.code, error.message);
@@ -685,7 +685,6 @@ app.post('/api/tuition-fee', isAuthenticated, async (req, res) => {
     if (!type || !amount) return res.status(400).json({ error: 'Type and amount are required' });
     try {
         const [result] = await db.query('INSERT INTO tuition_fees (type, amount) VALUES (?, ?)', [type, amount]);
-        console.log('Tuition fee inserted with ID:', result.insertId);  // Log success
         res.json({ message: 'Tuition fee added', id: result.insertId });
     } catch (error) {
         console.error('Error adding tuition fee:', error.code, error.message);
@@ -743,10 +742,10 @@ app.get('/test-db', async (req, res) => {
     }
 });
 
-// Signup route
+// Signup route (updated: dob optional, no redirect on success)
 app.post('/signup', async (req, res) => {
     console.log('Signup request body:', req.body);
-    const { firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, password, role } = req.body;
+    const { firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, password, role, dob } = req.body;  // dob optional
 
     try {
         const errors = [];
@@ -763,6 +762,7 @@ app.post('/signup', async (req, res) => {
         if (!username) errors.push('Username is required');
         if (!password || password.length < 6) errors.push('Password must be at least 6 characters');
         if (!role) errors.push('Role is required');
+        // dob optional - no error if missing
 
         if (errors.length > 0) {
             return res.status(400).json({ error: errors.join(', ') });
@@ -771,12 +771,12 @@ app.post('/signup', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const query = `
-            INSERT INTO user_info (firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, password, role)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO user_info (firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, password, role, dob)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        const [result] = await db.query(query, [firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, hashedPassword, role]);
-        console.log('User signed up with ID:', result.insertId);  // Log success
-        res.json({ redirect: '/login/Login.html' });
+        const values = [firstname, lastname, email, gender, phone, country, region, city, brgy, street, username, hashedPassword, role, dob || null];  // dob null if missing
+        const [result] = await db.query(query, values);
+        res.json({ message: 'Signup successful' });  // No redirect - frontend handles switch/alert
     } catch (error) {
         console.error('Error during signup:', error.code, error.message);
         if (error.code === 'ER_DUP_ENTRY') {
@@ -806,9 +806,8 @@ app.post('/login', async (req, res) => {
         const user = results[0];
         const match = await bcrypt.compare(password, user.password);
         if (match) {
-            req.session.user = { username: user.username, role: user.role }; // Include role in session
-            console.log('User logged in:', username);  // Log success
-            res.json({ redirect: '/dashboard' }); // Redirect to dashboard root
+            req.session.user = { username: user.username, role: user.role };
+            res.json({ redirect: '/dashboard' });
         } else {
             res.status(401).json({ error: 'Invalid username or password.' });
         }
@@ -824,14 +823,14 @@ app.post('/login', async (req, res) => {
     }
 });
 
-// Logout route
+// Logout route (changed to redirect for <a href> compatibility)
 app.get('/logout', (req, res) => {
     req.session.destroy((err) => {
         if (err) {
             console.error('Error during logout:', err);
-            return res.status(500).json({ error: 'Logout failed' });
+            return res.redirect('/login/Login.html');  // Redirect even on error
         }
-        res.json({ redirect: '/login/Login.html' });
+        res.redirect('/login/Login.html');  // Direct redirect instead of JSON
     });
 });
 
