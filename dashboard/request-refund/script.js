@@ -19,6 +19,24 @@ async function apiRequest(url, method, data = null) {
     }
 }
 
+function showLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'block';
+}
+
+function hideLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'none';
+}
+
+function showError(msg) {
+    const errorDiv = document.getElementById('error');
+    if (errorDiv) {
+        errorDiv.textContent = msg;
+        errorDiv.style.display = 'block';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const addRefundBtn = document.getElementById('addRefund');
     const refundTable = document.getElementById('refundTable');
@@ -26,36 +44,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fetch and display refund requests
     async function readRefundRequests() {
+        showLoader();
         try {
             const data = await apiRequest('/api/request-refund', 'GET');
             refundTable.innerHTML = '';
-            data.forEach(refund => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="border p-2">${refund.paymentId || 'N/A'}</td>
-                    <td class="border p-2">${refund.amount || 'N/A'}</td>
-                    <td class="border p-2">${refund.description || 'N/A'}</td>
-                    <td class="border p-2">${refund.status || 'N/A'}</td>
-                    <td class="border p-2">
-                        <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${refund.id}">Edit</button>
-                        <button class="delete-btn bg-red-500 text-white p-1 rounded" data-id="${refund.id}">Delete</button>
-                    </td>
-                `;
-                refundTable.appendChild(row);
-            });
+            if (data.length === 0) {
+                refundTable.innerHTML = '<tr><td colspan="5" class="border p-2 text-center">No refund requests found.</td></tr>';
+            } else {
+                data.forEach(refund => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="border p-2">${refund.paymentId || 'N/A'}</td>
+                        <td class="border p-2">${refund.amount || 'N/A'}</td>
+                        <td class="border p-2">${refund.description || 'N/A'}</td>
+                        <td class="border p-2">${refund.status || 'N/A'}</td>
+                        <td class="border p-2">
+                            <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${refund.id}">Edit</button>
+                            <button class="delete-btn bg-red-500 text-white p-1 rounded" data-id="${refund.id}">Delete</button>
+                        </td>
+                    `;
+                    refundTable.appendChild(row);
+                });
+            }
 
+            // Re-attach event listeners
             document.querySelectorAll('.edit-btn').forEach(btn => {
                 btn.addEventListener('click', () => editRefundRequest(btn.dataset.id));
             });
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', () => deleteRefundRequest(btn.dataset.id));
             });
+            hideLoader();
         } catch (error) {
             console.error('Failed to load refund requests:', error);
+            showError('Failed to load refund requests. Please refresh.');
+            refundTable.innerHTML = '<tr><td colspan="5" class="border p-2 text-center">Error loading data.</td></tr>';
+            hideLoader();
         }
     }
 
-    // Add or edit refund request
+    // Add or edit refund request (unchanged)
     async function saveRefundRequest() {
         const id = document.getElementById('refundId').value;
         const paymentId = document.getElementById('refundPaymentId').value.trim();
@@ -78,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Edit refund request
+    // Edit refund request (unchanged)
     async function editRefundRequest(id) {
         try {
             const data = await apiRequest(`/api/request-refund/${id}`, 'GET');
@@ -98,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Delete refund request
+    // Delete refund request (unchanged)
     async function deleteRefundRequest(id) {
         if (confirm('Are you sure you want to delete this refund request?')) {
             try {
@@ -111,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Show Modal
+    // Show Modal (unchanged)
     function showModal(title, content, buttonText, action) {
         document.getElementById('modalTitle').textContent = title;
         document.getElementById('modalContent').innerHTML = content;
@@ -120,10 +148,10 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.remove('hidden');
     }
 
-    // Close Modal
+    // Close Modal (unchanged)
     document.querySelector('.close').addEventListener('click', () => modal.classList.add('hidden'));
 
-    // Add refund button
+    // Add refund button (unchanged)
     addRefundBtn.addEventListener('click', () => {
         showModal('Request Refund', `
             <input type="hidden" id="refundId" value="">
@@ -138,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `, 'Add', saveRefundRequest);
     });
 
-    // Sidebar toggle
+    // Sidebar toggle (unchanged)
     document.getElementById('toggleSidebar').addEventListener('click', () => {
         const sidebar = document.getElementById('sidebar');
         sidebar.classList.toggle('collapsed');
@@ -147,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mainContent.classList.toggle('ml-20');
     });
 
-    // Highlight active page
+    // Highlight active page (unchanged)
     const navLinks = document.querySelectorAll('ul a');
     const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'request-refund';
     navLinks.forEach(link => {

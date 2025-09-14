@@ -7,6 +7,12 @@ body {
     padding: 0;
     line-height: 1.6;
 }
+.absolute {
+    position: absolute;
+}
+.z-50 {
+    z-index: 50;
+}
 
 /* Sidebar Styles */
 #sidebar {

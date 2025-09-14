@@ -19,6 +19,24 @@ async function apiRequest(url, method, data = null) {
     }
 }
 
+function showLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'block';
+}
+
+function hideLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'none';
+}
+
+function showError(msg) {
+    const errorDiv = document.getElementById('error');
+    if (errorDiv) {
+        errorDiv.textContent = msg;
+        errorDiv.style.display = 'block';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const addFeeBtn = document.getElementById('addFee');
     const feeTable = document.getElementById('feeTable');
@@ -26,34 +44,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fetch and display tuition fees
     async function readFees() {
+        showLoader();
         try {
             const data = await apiRequest('/api/tuition-fee', 'GET');
             feeTable.innerHTML = '';
-            data.forEach(fee => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="border p-2">${fee.type || 'N/A'}</td>
-                    <td class="border p-2">${fee.amount || 'N/A'}</td>
-                    <td class="border p-2">
-                        <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${fee.id}">Edit</button>
-                        <button class="delete-btn bg-red-500 text-white p-1 rounded" data-id="${fee.id}">Delete</button>
-                    </td>
-                `;
-                feeTable.appendChild(row);
-            });
+            if (data.length === 0) {
+                feeTable.innerHTML = '<tr><td colspan="3" class="border p-2 text-center">No tuition fees found.</td></tr>';
+            } else {
+                data.forEach(fee => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="border p-2">${fee.type || 'N/A'}</td>
+                        <td class="border p-2">${fee.amount || 'N/A'}</td>
+                        <td class="border p-2">
+                            <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${fee.id}">Edit</button>
+                            <button class="delete-btn bg-red-500 text-white p-1 rounded" data-id="${fee.id}">Delete</button>
+                        </td>
+                    `;
+                    feeTable.appendChild(row);
+                });
+            }
 
+            // Re-attach event listeners
             document.querySelectorAll('.edit-btn').forEach(btn => {
                 btn.addEventListener('click', () => editFee(btn.dataset.id));
             });
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', () => deleteFee(btn.dataset.id));
             });
+            hideLoader();
         } catch (error) {
             console.error('Failed to load tuition fees:', error);
+            showError('Failed to load tuition fees. Please refresh.');
+            feeTable.innerHTML = '<tr><td colspan="3" class="border p-2 text-center">Error loading data.</td></tr>';
+            hideLoader();
         }
     }
 
-    // Add or edit tuition fee
+    // Add or edit tuition fee (unchanged)
     async function saveFee() {
         const id = document.getElementById('feeId').value;
         const type = document.getElementById('feeType').value.trim();
@@ -74,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Edit tuition fee
+    // Edit tuition fee (unchanged)
     async function editFee(id) {
         try {
             const data = await apiRequest(`/api/tuition-fee/${id}`, 'GET');
@@ -88,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Delete tuition fee
+    // Delete tuition fee (unchanged)
     async function deleteFee(id) {
         if (confirm('Are you sure you want to delete this tuition fee?')) {
             try {
@@ -101,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Show Modal
+    // Show Modal (unchanged)
     function showModal(title, content, buttonText, action) {
         document.getElementById('modalTitle').textContent = title;
         document.getElementById('modalContent').innerHTML = content;
@@ -110,10 +138,10 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.remove('hidden');
     }
 
-    // Close Modal
+    // Close Modal (unchanged)
     document.querySelector('.close').addEventListener('click', () => modal.classList.add('hidden'));
 
-    // Add fee button
+    // Add fee button (unchanged)
     addFeeBtn.addEventListener('click', () => {
         showModal('Add Tuition Fee', `
             <input type="hidden" id="feeId" value="">
@@ -122,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `, 'Add', saveFee);
     });
 
-    // Sidebar toggle
+    // Sidebar toggle (unchanged)
     document.getElementById('toggleSidebar').addEventListener('click', () => {
         const sidebar = document.getElementById('sidebar');
         sidebar.classList.toggle('collapsed');
@@ -131,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mainContent.classList.toggle('ml-20');
     });
 
-    // Highlight active page
+    // Highlight active page (unchanged)
     const navLinks = document.querySelectorAll('ul a');
     const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'tuition-fee';
     navLinks.forEach(link => {

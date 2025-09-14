@@ -12,21 +12,24 @@
     <div class="fixed w-64 h-full bg-gray-800 text-white p-4 transition-all duration-300" id="sidebar">
         <h2 class="text-2xl font-bold mb-6">School Admin</h2>
         <ul class="space-y-2">
-            <li><a href="/dashboard/profile" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-profile"><span class="mr-2">👤</span> Profile</a></li>
-            <li><a href="/dashboard/student-list" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-student-list"><span class="mr-2">📋</span> Student List</a></li>
-            <li><a href="/dashboard/payment-plan" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-payment-plan"><span class="mr-2">💰</span> Payment Plan</a></li>
-            <li><a href="/dashboard/tuition-fee" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-tuition-fee"><span class="mr-2">📚</span> Tuition Fee</a></li>
-            <li><a href="/dashboard/payment-method" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-payment-method"><span class="mr-2">💳</span> Payment Method</a></li>
-            <li><a href="/dashboard/request-refund" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-request-refund"><span class="mr-2">↩️</span> Request Refund</a></li>
-            <li><a href="/dashboard/student-payment" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-student-payment"><span class="mr-2">💸</span> Student Payment</a></li>
-            <li><a href="/dashboard/audit-log" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-audit-log"><span class="mr-2">🔍</span> Audit Log</a></li>
-            <li><a href="/dashboard/account-setting" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-account-setting"><span class="mr-2">⚙️</span> Account Setting</a></li>
-            <li><a href="/login/Login.html" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-logout"><span class="mr-2">🚪</span> Logout</a></li>
-        </ul>
+    <li><a href="/dashboard/dashboard" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-dashboard"><span class="mr-2">📊</span> Dashboard</a></li>
+    <li><a href="/dashboard/profile" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-profile"><span class="mr-2">👤</span> Profile</a></li>
+    <li><a href="/dashboard/student-list" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-student-list"><span class="mr-2">📋</span> Student List</a></li>
+    <li><a href="/dashboard/payment-plan" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-payment-plan"><span class="mr-2">💰</span> Payment Plan</a></li>
+    <li><a href="/dashboard/tuition-fee" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-tuition-fee"><span class="mr-2">📚</span> Tuition Fee</a></li>
+    <li><a href="/dashboard/payment-method" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-payment-method"><span class="mr-2">💳</span> Payment Method</a></li>
+    <li><a href="/dashboard/request-refund" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-request-refund"><span class="mr-2">↩️</span> Request Refund</a></li>
+    <li><a href="/dashboard/student-payment" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-student-payment"><span class="mr-2">💸</span> Student Payment</a></li>
+    <li><a href="/dashboard/audit-log" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-audit-log"><span class="mr-2">🔍</span> Audit Log</a></li>
+    <li><a href="/dashboard/account-setting" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-account-setting"><span class="mr-2">⚙️</span> Account Setting</a></li>
+    <li><a href="/login/Login.html" class="block p-2 hover:bg-gray-700 rounded flex items-center" id="nav-logout"><span class="mr-2">🚪</span> Logout</a></li>
+</ul>
     </div>
     <div class="flex-1 ml-64 p-6" id="mainContent">
         <h1 class="text-2xl font-bold mb-4">Refund Requests</h1>
         <div class="bg-white p-4 rounded shadow">
+            <div id="loader" class="text-center p-4 text-gray-500" style="display:none;">Loading data...</div>
+            <div id="error" class="text-red-500 p-4" style="display:none;"></div>
             <button id="addRefund" class="bg-blue-500 text-white p-2 rounded mb-4">Request Refund</button>
             <table class="w-full border-collapse">
                 <thead>

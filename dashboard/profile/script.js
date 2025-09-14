@@ -19,6 +19,24 @@ async function apiRequest(url, method, data = null) {
     }
 }
 
+function showLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'block';
+}
+
+function hideLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'none';
+}
+
+function showError(msg) {
+    const errorDiv = document.getElementById('error');
+    if (errorDiv) {
+        errorDiv.textContent = msg;
+        errorDiv.style.display = 'block';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const profilePic = document.getElementById('profilePic');
     const editProfileBtn = document.getElementById('editProfile');
@@ -29,17 +47,85 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fetch profile data
     async function readProfile() {
+        showLoader();
         try {
             const data = await apiRequest('/api/profile', 'GET');
-            document.getElementById('name').textContent = data.name || 'N/A';
-            document.getElementById('role').textContent = data.role || 'N/A';
-            document.getElementById('email').textContent = data.email || 'N/A';
-            document.getElementById('dob').textContent = data.dob ? new Date(data.dob).toLocaleDateString() : 'N/A';
-            profilePic.src = data.profilePic || 'https://via.placeholder.com/150';
+            if (!data) {
+                showError('No profile data available.');
+            } else {
+                document.getElementById('name').textContent = data.name || 'N/A';
+                document.getElementById('role').textContent = data.role || 'N/A';
+                document.getElementById('email').textContent = data.email || 'N/A';
+                document.getElementById('dob').textContent = data.dob ? new Date(data.dob).toLocaleDateString() : 'N/A';
+                profilePic.src = data.profilePic || 'https://via.placeholder.com/150';
+            }
+            hideLoader();
         } catch (error) {
             console.error('Failed to load profile:', error);
+            showError('Failed to load profile. Please refresh.');
+            hideLoader();
         }
     }
+
+    // Profile picture click to show options
+    profilePic.addEventListener('click', (e) => {
+        e.preventDefault();
+        const options = document.createElement('div');
+        options.className = 'absolute bg-white border rounded shadow-lg p-2 z-50';
+        options.innerHTML = `
+            <a href="#" class="block p-1 text-blue-500 hover:bg-gray-200" id="viewProfileOption">View Profile</a>
+            <a href="#" class="block p-1 text-blue-500 hover:bg-gray-200" id="editProfileOption">Edit Profile</a>
+            <a href="#" class="block p-1 text-blue-500 hover:bg-gray-200" id="uploadProfileOption">Upload Profile</a>
+            <a href="#" class="block p-1 text-red-500 hover:bg-gray-200" id="deleteProfileOption">Delete Profile</a>
+        `;
+        options.style.top = (e.pageY + 5) + 'px';
+        options.style.left = (e.pageX + 5) + 'px';
+        document.body.appendChild(options);
+
+        // Event listeners for options
+      document.getElementById('deleteProfileOption').addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (confirm('Are you sure you want to delete your profile picture?')) {
+        try {
+            await apiRequest('/api/profile/picture', 'DELETE');
+            readProfile(); // Refresh profile to show default image
+            options.remove();
+        } catch (error) {
+            alert(`Error: ${error.message}`);
+        }
+    }
+});
+
+        document.getElementById('editProfileOption').addEventListener('click', (e) => {
+            e.preventDefault();
+            editProfileBtn.click(); // Trigger the existing edit button
+            options.remove();
+        });
+
+        document.getElementById('uploadProfileOption').addEventListener('click', (e) => {
+            e.preventDefault();
+            uploadModal.classList.remove('hidden');
+            options.remove();
+        });
+
+        document.getElementById('deleteProfileOption').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (confirm('Are you sure you want to delete your profile picture?')) {
+                // Add API call to delete profile picture (e.g., PUT /api/profile with { profilePic: null })
+                alert('Profile picture deleted!'); // Replace with actual delete logic
+                profilePic.src = 'https://via.placeholder.com/150';
+                options.remove();
+            }
+        });
+
+        // Close options when clicking outside
+        document.addEventListener('click', function closeOptions(e) {
+            if (!options.contains(e.target) && e.target !== profilePic) {
+                options.remove();
+                document.removeEventListener('click', closeOptions);
+            }
+        });
+    });
 
     // Edit profile
     editProfileBtn.addEventListener('click', async () => {
@@ -71,7 +157,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Upload profile picture
-    profilePic.addEventListener('click', () => uploadModal.classList.remove('hidden'));
     uploadPicBtn.addEventListener('click', async () => {
         const file = document.getElementById('profilePicInput').files[0];
         if (file) {

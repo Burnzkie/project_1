@@ -1,17 +1,37 @@
+/* styles.css */
+
 /* Sidebar Styles */
 #sidebar {
     z-index: 10;
 }
+
 #sidebar.collapsed {
     width: 80px;
 }
+
 #sidebar.collapsed ul a span:first-child {
     margin-right: 0;
 }
+
 #sidebar.collapsed ul a {
     text-align: center;
     padding: 10px;
 }
+
 #userDropdown:focus + #dropdownMenu, #dropdownMenu:hover {
     display: block;
+}
+
+/* Card Styles (if not defined in Tailwind) */
+.card {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* Chart Container */
+.chart-container {
+    position: relative;
+    height: 400px;
 }

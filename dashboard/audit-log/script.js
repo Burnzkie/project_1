@@ -19,6 +19,24 @@ async function apiRequest(url, method, data = null) {
     }
 }
 
+function showLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'block';
+}
+
+function hideLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'none';
+}
+
+function showError(msg) {
+    const errorDiv = document.getElementById('error');
+    if (errorDiv) {
+        errorDiv.textContent = msg;
+        errorDiv.style.display = 'block';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const auditLogTable = document.getElementById('auditLogTable');
     const filterInput = document.getElementById('filterInput');
@@ -26,36 +44,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fetch and display audit logs
     async function readAuditLogs(filter = '') {
+        showLoader();
         try {
             const data = await apiRequest(`/api/audit-log${filter ? `?filter=${encodeURIComponent(filter)}` : ''}`, 'GET');
             auditLogTable.innerHTML = '';
-            data.forEach(log => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="border p-2">${log.action || 'N/A'}</td>
-                    <td class="border p-2">${log.user || 'N/A'}</td>
-                    <td class="border p-2">${new Date(log.timestamp).toLocaleString()}</td>
-                    <td class="border p-2">${log.details || 'N/A'}</td>
-                    <td class="border p-2">
-                        <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${log.id}">Edit</button>
-                        <button class="delete-btn bg-red-500 text-white p-1 rounded" data-id="${log.id}">Archive</button>
-                    </td>
-                `;
-                auditLogTable.appendChild(row);
-            });
+            if (data.length === 0) {
+                auditLogTable.innerHTML = '<tr><td colspan="5" class="border p-2 text-center">No audit logs found.</td></tr>';
+            } else {
+                data.forEach(log => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="border p-2">${log.action || 'N/A'}</td>
+                        <td class="border p-2">${log.user || 'N/A'}</td>
+                        <td class="border p-2">${new Date(log.timestamp).toLocaleString()}</td>
+                        <td class="border p-2">${log.details || 'N/A'}</td>
+                        <td class="border p-2">
+                            <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${log.id}">Edit</button>
+                            <button class="delete-btn bg-red-500 text-white p-1 rounded" data-id="${log.id}">Archive</button>
+                        </td>
+                    `;
+                    auditLogTable.appendChild(row);
+                });
+            }
 
+            // Re-attach event listeners
             document.querySelectorAll('.edit-btn').forEach(btn => {
                 btn.addEventListener('click', () => editAuditLog(btn.dataset.id));
             });
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', () => deleteAuditLog(btn.dataset.id));
             });
+            hideLoader();
         } catch (error) {
             console.error('Failed to load audit logs:', error);
+            showError('Failed to load audit logs. Please refresh.');
+            auditLogTable.innerHTML = '<tr><td colspan="5" class="border p-2 text-center">Error loading data.</td></tr>';
+            hideLoader();
         }
     }
 
-    // Edit audit log
+    // Edit audit log (unchanged)
     async function editAuditLog(id) {
         try {
             const data = await apiRequest(`/api/audit-log/${id}`, 'GET');
@@ -81,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Delete (archive) audit log
+    // Delete (archive) audit log (unchanged)
     async function deleteAuditLog(id) {
         if (confirm('Are you sure you want to archive this log?')) {
             try {
@@ -94,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Show Modal
+    // Show Modal (unchanged)
     function showModal(title, content, buttonText, action) {
         document.getElementById('modalTitle').textContent = title;
         document.getElementById('modalContent').innerHTML = content;
@@ -103,13 +131,13 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.remove('hidden');
     }
 
-    // Close Modal
+    // Close Modal (unchanged)
     document.querySelector('.close').addEventListener('click', () => modal.classList.add('hidden'));
 
-    // Filter logs
+    // Filter logs (unchanged)
     filterInput.addEventListener('input', () => readAuditLogs(filterInput.value));
 
-    // Sidebar toggle
+    // Sidebar toggle (unchanged)
     document.getElementById('toggleSidebar').addEventListener('click', () => {
         const sidebar = document.getElementById('sidebar');
         sidebar.classList.toggle('collapsed');
@@ -118,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mainContent.classList.toggle('ml-20');
     });
 
-    // Highlight active page
+    // Highlight active page (unchanged)
     const navLinks = document.querySelectorAll('ul a');
     const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'audit-log';
     navLinks.forEach(link => {

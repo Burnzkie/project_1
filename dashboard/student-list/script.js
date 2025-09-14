@@ -19,6 +19,24 @@ async function apiRequest(url, method, data = null) {
     }
 }
 
+function showLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'block';
+}
+
+function hideLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'none';
+}
+
+function showError(msg) {
+    const errorDiv = document.getElementById('error');
+    if (errorDiv) {
+        errorDiv.textContent = msg;
+        errorDiv.style.display = 'block';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const addStudentBtn = document.getElementById('addStudent');
     const studentTable = document.getElementById('studentTable');
@@ -26,35 +44,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fetch and display students
     async function readStudents() {
+        showLoader();
         try {
             const data = await apiRequest('/api/student', 'GET');
             studentTable.innerHTML = '';
-            data.forEach(student => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="border p-2">${student.id || 'N/A'}</td>
-                    <td class="border p-2">${student.name || 'N/A'}</td>
-                    <td class="border p-2">${student.program || 'N/A'}</td>
-                    <td class="border p-2">${student.year_level || 'N/A'}</td>
-                    <td class="border p-2">${student.date ? new Date(student.date).toLocaleDateString() : 'N/A'}</td>
-                    <td class="border p-2">${student.email || 'N/A'}</td>
-                    <td class="border p-2">${student.contact || 'N/A'}</td>
-                    <td class="border p-2">
-                        <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${student.id}">Edit</button>
-                        <button class="delete-btn bg-red-500 text-white p-1 rounded" data-id="${student.id}">Delete</button>
-                    </td>
-                `;
-                studentTable.appendChild(row);
-            });
+            if (data.length === 0) {
+                studentTable.innerHTML = '<tr><td colspan="8" class="border p-2 text-center">No students found.</td></tr>';
+            } else {
+                data.forEach(student => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="border p-2">${student.id || 'N/A'}</td>
+                        <td class="border p-2">${student.name || 'N/A'}</td>
+                        <td class="border p-2">${student.program || 'N/A'}</td>
+                        <td class="border p-2">${student.year_level || 'N/A'}</td>
+                        <td class="border p-2">${student.date ? new Date(student.date).toLocaleDateString() : 'N/A'}</td>
+                        <td class="border p-2">${student.email || 'N/A'}</td>
+                        <td class="border p-2">${student.contact || 'N/A'}</td>
+                        <td class="border p-2">
+                            <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${student.id}">Edit</button>
+                            <button class="delete-btn bg-red-500 text-white p-1 rounded" data-id="${student.id}">Delete</button>
+                        </td>
+                    `;
+                    studentTable.appendChild(row);
+                });
+            }
 
+            // Re-attach event listeners
             document.querySelectorAll('.edit-btn').forEach(btn => {
                 btn.addEventListener('click', () => editStudent(btn.dataset.id));
             });
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', () => deleteStudent(btn.dataset.id));
             });
+            hideLoader();
         } catch (error) {
             console.error('Failed to load students:', error);
+            showError('Failed to load students. Please refresh.');
+            studentTable.innerHTML = '<tr><td colspan="8" class="border p-2 text-center">Error loading data.</td></tr>';
+            hideLoader();
         }
     }
 
@@ -70,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (name && program && year_level && email) {
             try {
                 const method = id ? 'PUT' : 'POST';
-                const url = id ? `/api/student/${id}` : '/api/student-list';
+                const url = id ? `/api/student/${id}` : '/api/student';  // Fixed POST URL
                 await apiRequest(url, method, { name, program, year_level, date, email, contact });
                 readStudents();
                 modal.classList.add('hidden');
@@ -83,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Edit student
+    // Edit student (unchanged)
     async function editStudent(id) {
         try {
             const data = await apiRequest(`/api/student/${id}`, 'GET');
@@ -101,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Delete student
+    // Delete student (unchanged)
     async function deleteStudent(id) {
         if (confirm('Are you sure you want to delete this student?')) {
             try {
@@ -114,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Show Modal
+    // Show Modal (unchanged)
     function showModal(title, content, buttonText, action) {
         document.getElementById('modalTitle').textContent = title;
         document.getElementById('modalContent').innerHTML = content;
@@ -123,10 +151,10 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.remove('hidden');
     }
 
-    // Close Modal
+    // Close Modal (unchanged)
     document.querySelector('.close').addEventListener('click', () => modal.classList.add('hidden'));
 
-    // Add student button
+    // Add student button (unchanged)
     addStudentBtn.addEventListener('click', () => {
         showModal('Add Student', `
             <input type="hidden" id="studentId" value="">
@@ -139,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `, 'Add', saveStudent);
     });
 
-    // Sidebar toggle
+    // Sidebar toggle (unchanged)
     document.getElementById('toggleSidebar').addEventListener('click', () => {
         const sidebar = document.getElementById('sidebar');
         sidebar.classList.toggle('collapsed');
@@ -148,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mainContent.classList.toggle('ml-20');
     });
 
-    // Highlight active page
+    // Highlight active page (unchanged)
     const navLinks = document.querySelectorAll('ul a');
     const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'student-list';
     navLinks.forEach(link => {

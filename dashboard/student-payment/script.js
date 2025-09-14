@@ -19,6 +19,24 @@ async function apiRequest(url, method, data = null) {
     }
 }
 
+function showLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'block';
+}
+
+function hideLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'none';
+}
+
+function showError(msg) {
+    const errorDiv = document.getElementById('error');
+    if (errorDiv) {
+        errorDiv.textContent = msg;
+        errorDiv.style.display = 'block';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const addPaymentBtn = document.getElementById('addPayment');
     const paymentTable = document.getElementById('paymentTable');
@@ -26,25 +44,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fetch and display student payments
     async function readPayments() {
+        showLoader();
         try {
             const data = await apiRequest('/api/student-payment', 'GET');
             paymentTable.innerHTML = '';
-            data.forEach(payment => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="border p-2">${payment.studentId || 'N/A'}</td>
-                    <td class="border p-2">${payment.studentName || 'N/A'}</td>
-                    <td class="border p-2">${payment.amount || 'N/A'}</td>
-                    <td class="border p-2">${payment.description || 'N/A'}</td>
-                    <td class="border p-2">
-                        <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${payment.id}">Edit</button>
-                        <button class="delete-btn bg-red-500 text-white p-1 rounded" data-id="${payment.id}">Delete</button>
-                        <button class="refund-btn bg-yellow-500 text-white p-1 rounded" data-id="${payment.id}">Refund</button>
-                    </td>
-                `;
-                paymentTable.appendChild(row);
-            });
+            if (data.length === 0) {
+                paymentTable.innerHTML = '<tr><td colspan="5" class="border p-2 text-center">No payments found.</td></tr>';
+            } else {
+                data.forEach(payment => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="border p-2">${payment.studentId || 'N/A'}</td>
+                        <td class="border p-2">${payment.studentName || 'N/A'}</td>
+                        <td class="border p-2">${payment.amount || 'N/A'}</td>
+                        <td class="border p-2">${payment.description || 'N/A'}</td>
+                        <td class="border p-2">
+                            <button class="edit-btn bg-blue-500 text-white p-1 rounded mr-2" data-id="${payment.id}">Edit</button>
+                            <button class="delete-btn bg-red-500 text-white p-1 rounded" data-id="${payment.id}">Delete</button>
+                            <button class="refund-btn bg-yellow-500 text-white p-1 rounded" data-id="${payment.id}">Refund</button>
+                        </td>
+                    `;
+                    paymentTable.appendChild(row);
+                });
+            }
 
+            // Re-attach event listeners
             document.querySelectorAll('.edit-btn').forEach(btn => {
                 btn.addEventListener('click', () => editPayment(btn.dataset.id));
             });
@@ -54,12 +78,16 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.refund-btn').forEach(btn => {
                 btn.addEventListener('click', () => requestRefund(btn.dataset.id));
             });
+            hideLoader();
         } catch (error) {
             console.error('Failed to load payments:', error);
+            showError('Failed to load payments. Please refresh.');
+            paymentTable.innerHTML = '<tr><td colspan="5" class="border p-2 text-center">Error loading data.</td></tr>';
+            hideLoader();
         }
     }
 
-    // Add or edit payment
+    // Add or edit payment (unchanged)
     async function savePayment() {
         const id = document.getElementById('paymentId').value;
         const studentId = document.getElementById('studentId').value.trim();
@@ -82,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Edit payment
+    // Edit payment (unchanged)
     async function editPayment(id) {
         try {
             const data = await apiRequest(`/api/student-payment/${id}`, 'GET');
@@ -98,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Delete payment
+    // Delete payment (unchanged)
     async function deletePayment(id) {
         if (confirm('Are you sure you want to delete this payment?')) {
             try {
@@ -111,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Request refund
+    // Request refund (unchanged)
     async function requestRefund(id) {
         try {
             const data = await apiRequest(`/api/student-payment/${id}`, 'GET');
@@ -124,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Show Modal
+    // Show Modal (unchanged)
     function showModal(title, content, buttonText, action) {
         document.getElementById('modalTitle').textContent = title;
         document.getElementById('modalContent').innerHTML = content;
@@ -133,10 +161,10 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.remove('hidden');
     }
 
-    // Close Modal
+    // Close Modal (unchanged)
     document.querySelector('.close').addEventListener('click', () => modal.classList.add('hidden'));
 
-    // Add payment button
+    // Add payment button (unchanged)
     addPaymentBtn.addEventListener('click', () => {
         showModal('Add Payment', `
             <input type="hidden" id="paymentId" value="">
@@ -147,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `, 'Add', savePayment);
     });
 
-    // Sidebar toggle
+    // Sidebar toggle (unchanged)
     document.getElementById('toggleSidebar').addEventListener('click', () => {
         const sidebar = document.getElementById('sidebar');
         sidebar.classList.toggle('collapsed');
@@ -156,9 +184,9 @@ document.addEventListener('DOMContentLoaded', () => {
         mainContent.classList.toggle('ml-20');
     });
 
-    // Highlight active page
+    // Highlight active page (unchanged)
     const navLinks = document.querySelectorAll('ul a');
-    const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'student-payment';
+    const currentPage = window.location.pathname.split('/').pop().replace('index.html','') || 'student-payment';
     navLinks.forEach(link => {
         if (link.getAttribute('href').includes(currentPage)) {
             link.classList.add('bg-gray-700');

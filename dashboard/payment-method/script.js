@@ -19,6 +19,24 @@ async function apiRequest(url, method, data = null) {
     }
 }
 
+function showLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'block';
+}
+
+function hideLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'none';
+}
+
+function showError(msg) {
+    const errorDiv = document.getElementById('error');
+    if (errorDiv) {
+        errorDiv.textContent = msg;
+        errorDiv.style.display = 'block';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const addMethodBtn = document.getElementById('addMethod');
     const methodGrid = document.getElementById('methodGrid');
@@ -26,33 +44,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fetch and display payment methods
     async function readPaymentMethods() {
+        showLoader();
         try {
             const data = await apiRequest('/api/payment-method', 'GET');
             methodGrid.innerHTML = '';
-            data.forEach(method => {
-                const div = document.createElement('div');
-                div.className = 'bg-gray-300 p-4 rounded text-center';
-                div.innerHTML = `
-                    <p><strong>${method.name || 'N/A'}</strong></p>
-                    <p>${method.description || 'No description'}</p>
-                    <button class="edit-btn bg-blue-500 text-white p-1 rounded mt-2 mr-2" data-id="${method.id}">Edit</button>
-                    <button class="delete-btn bg-red-500 text-white p-1 rounded mt-2" data-id="${method.id}">Delete</button>
-                `;
-                methodGrid.appendChild(div);
-            });
+            if (data.length === 0) {
+                methodGrid.innerHTML = '<p class="text-center p-4">No payment methods found.</p>';
+            } else {
+                data.forEach(method => {
+                    const div = document.createElement('div');
+                    div.className = 'bg-gray-300 p-4 rounded text-center';
+                    div.innerHTML = `
+                        <p><strong>${method.name || 'N/A'}</strong></p>
+                        <p>${method.description || 'No description'}</p>
+                        <button class="edit-btn bg-blue-500 text-white p-1 rounded mt-2 mr-2" data-id="${method.id}">Edit</button>
+                        <button class="delete-btn bg-red-500 text-white p-1 rounded mt-2" data-id="${method.id}">Delete</button>
+                    `;
+                    methodGrid.appendChild(div);
+                });
+            }
 
+            // Re-attach event listeners
             document.querySelectorAll('.edit-btn').forEach(btn => {
                 btn.addEventListener('click', () => editPaymentMethod(btn.dataset.id));
             });
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', () => deletePaymentMethod(btn.dataset.id));
             });
+            hideLoader();
         } catch (error) {
             console.error('Failed to load payment methods:', error);
+            showError('Failed to load payment methods. Please refresh.');
+            methodGrid.innerHTML = '<p class="text-center p-4 text-red-500">Error loading data.</p>';
+            hideLoader();
         }
     }
 
-    // Add or edit payment method
+    // Add or edit payment method (unchanged)
     async function savePaymentMethod() {
         const id = document.getElementById('methodId').value;
         const name = document.getElementById('methodName').value.trim();
@@ -73,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Edit payment method
+    // Edit payment method (unchanged)
     async function editPaymentMethod(id) {
         try {
             const data = await apiRequest(`/api/payment-method/${id}`, 'GET');
@@ -87,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Delete payment method
+    // Delete payment method (unchanged)
     async function deletePaymentMethod(id) {
         if (confirm('Are you sure you want to delete this payment method?')) {
             try {
@@ -100,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Show Modal
+    // Show Modal (unchanged)
     function showModal(title, content, buttonText, action) {
         document.getElementById('modalTitle').textContent = title;
         document.getElementById('modalContent').innerHTML = content;
@@ -109,10 +137,10 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.remove('hidden');
     }
 
-    // Close Modal
+    // Close Modal (unchanged)
     document.querySelector('.close').addEventListener('click', () => modal.classList.add('hidden'));
 
-    // Add method button
+    // Add method button (unchanged)
     addMethodBtn.addEventListener('click', () => {
         showModal('Add Payment Method', `
             <input type="hidden" id="methodId" value="">
@@ -121,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `, 'Add', savePaymentMethod);
     });
 
-    // Sidebar toggle
+    // Sidebar toggle (unchanged)
     document.getElementById('toggleSidebar').addEventListener('click', () => {
         const sidebar = document.getElementById('sidebar');
         sidebar.classList.toggle('collapsed');
@@ -130,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mainContent.classList.toggle('ml-20');
     });
 
-    // Highlight active page
+    // Highlight active page (unchanged)
     const navLinks = document.querySelectorAll('ul a');
     const currentPage = window.location.pathname.split('/').pop().replace('index.html', '') || 'payment-method';
     navLinks.forEach(link => {

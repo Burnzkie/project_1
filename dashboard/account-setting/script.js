@@ -19,15 +19,37 @@ async function apiRequest(url, method, data = null) {
     }
 }
 
+function showLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'block';
+}
+
+function hideLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'none';
+}
+
+function showError(msg) {
+    const errorDiv = document.getElementById('error');
+    if (errorDiv) {
+        errorDiv.textContent = msg;
+        errorDiv.style.display = 'block';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Fetch account data
     async function readAccount() {
+        showLoader();
         try {
             const data = await apiRequest('/api/account', 'GET');
             document.getElementById('username').textContent = data.username || 'N/A';
             document.getElementById('email').textContent = data.email || 'N/A';
+            hideLoader();
         } catch (error) {
             console.error('Failed to load account:', error);
+            showError('Failed to load account data. Please refresh.');
+            hideLoader();
         }
     }
 
@@ -38,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (newUsername) {
                 try {
                     await apiRequest('/api/account', 'PUT', { username: newUsername, email: document.getElementById('email').textContent });
-                    location.reload();
+                    readAccount();  // Re-fetch instead of reload
                 } catch (error) {}
             } else {
                 alert('Please enter a username.');
@@ -53,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (newEmail) {
                 try {
                     await apiRequest('/api/account', 'PUT', { username: document.getElementById('username').textContent, email: newEmail });
-                    location.reload();
+                    readAccount();  // Re-fetch instead of reload
                 } catch (error) {}
             } else {
                 alert('Please enter an email.');
